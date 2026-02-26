@@ -61,7 +61,7 @@ export default function App() {
     }, [])
 
     return (
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <div style={{ position: 'relative', minHeight: '100vh' }}>
                 {!isSupabaseConfigured && (
                     <div style={{
