@@ -60,13 +60,22 @@ export const useAuthStore = create((set, get) => ({
     },
 
     signInWithGoogle: async () => {
-        const { error } = await supabase.auth.signInWithOAuth({
+        const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
                 redirectTo: `${window.location.origin}/auth/callback`,
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'consent',
+                },
             },
         })
+        console.log('signInWithOAuth result:', { data, error })
         if (error) throw error
+        // Manually redirect if the SDK didn't do it automatically (mobile fix)
+        if (data?.url) {
+            window.location.href = data.url
+        }
     },
 
     signInWithPhone: async (phone) => {
