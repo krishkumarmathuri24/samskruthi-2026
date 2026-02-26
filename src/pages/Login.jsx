@@ -17,10 +17,13 @@ export default function Login() {
 
     const handleGoogle = async () => {
         try {
+            toast.loading('Redirecting to Google…', { id: 'google-auth', duration: 8000 })
             await signInWithGoogle()
-            // Redirect happens via OAuth flow
+            // Redirect happens via OAuth flow — page will navigate away
         } catch (err) {
-            toast.error(err.message || 'Google sign-in failed')
+            toast.dismiss('google-auth')
+            console.error('Google sign-in error:', err)
+            toast.error(err.message || 'Google sign-in failed. Check Supabase Google provider settings.')
         }
     }
 
