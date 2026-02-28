@@ -15,16 +15,9 @@ export default function Login() {
     const [step, setStep] = useState('phone') // 'phone' | 'otp'
     const [sending, setSending] = useState(false)
 
-    const handleGoogle = async () => {
-        try {
-            toast.loading('Redirecting to Google…', { id: 'google-auth', duration: 8000 })
-            await signInWithGoogle()
-            // Redirect happens via OAuth flow — page will navigate away
-        } catch (err) {
-            toast.dismiss('google-auth')
-            console.error('Google sign-in error:', err)
-            toast.error(err.message || 'Google sign-in failed. Check Supabase Google provider settings.')
-        }
+    const handleGoogle = () => {
+        // Direct synchronous navigation — Safari compatible
+        signInWithGoogle()
     }
 
     const handleSendOtp = async (e) => {
