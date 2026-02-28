@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/store'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
@@ -55,7 +56,8 @@ function Field({ icon, label, name, placeholder, type = 'text', as: As = 'input'
 }
 
 export default function Profile() {
-    const { user, profile, fetchProfile } = useAuthStore()
+    const { user, profile, setProfile } = useAuthStore()
+    const navigate = useNavigate()
     const fileRef = useRef(null)
     const [editing, setEditing] = useState(false)
     const [saving, setSaving] = useState(false)
@@ -126,11 +128,20 @@ export default function Profile() {
         try {
             let avatar_url = profile?.avatar_url || null
             if (avatarFile) { const url = await uploadAvatar(); if (url) avatar_url = url }
-            const { error } = await supabase.from('profiles').upsert({ id: user.id, ...form, avatar_url, updated_at: new Date().toISOString() })
+
+            const updated = { id: user.id, ...form, avatar_url, updated_at: new Date().toISOString() }
+
+            const { error } = await supabase.from('profiles').upsert(updated)
             if (error) throw error
-            await fetchProfile(user)
+
+            // ✅ Optimistic update — instantly reflect in navbar without extra API call
+            setProfile({ ...profile, ...updated })
+
             toast.success('Profile saved! ✅')
             setEditing(false); setAvatarFile(null); setAvatarPreview(null)
+
+            // Navigate home so user sees updated avatar/name in navbar
+            navigate('/')
         } catch (err) {
             toast.error('Failed to save: ' + err.message)
         } finally {
