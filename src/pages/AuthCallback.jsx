@@ -22,48 +22,75 @@ export default function AuthCallback() {
                 toast.success(`Welcome, ${session.user.user_metadata?.full_name || 'User'}! 🎉`)
                 navigate('/', { replace: true })
             } else {
-                setStatus('No session found, redirecting…')
+                setStatus('Sign in failed, redirecting…')
                 setTimeout(() => navigate('/login', { replace: true }), 1500)
             }
         }
 
-        // Method 1: Listen to auth state change (catches hash-based tokens on mobile)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
-                if (event === 'SIGNED_IN' && session) {
-                    await handleSession(session)
-                } else if (event === 'SIGNED_OUT') {
-                    navigate('/login', { replace: true })
-                }
-            }
-        )
-
-        // Method 2: Also try getSession as fallback (in case event already fired)
-        const tryGetSession = async () => {
+        const run = async () => {
             try {
+                // PKCE flow: exchange the code from URL for a session
+                const params = new URLSearchParams(window.location.search)
+                const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'))
+
+                const code = params.get('code')
+                const accessToken = hashParams.get('access_token') || params.get('access_token')
+                const errorDesc = params.get('error_description') || hashParams.get('error_description')
+
+                if (errorDesc) {
+                    toast.error(decodeURIComponent(errorDesc))
+                    navigate('/login', { replace: true })
+                    return
+                }
+
+                if (code) {
+                    // PKCE flow — exchange auth code for session
+                    setStatus('Verifying with Google…')
+                    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+                    if (error) throw error
+                    await handleSession(data.session)
+                    return
+                }
+
+                if (accessToken) {
+                    // Implicit flow fallback
+                    const { data: { session } } = await supabase.auth.getSession()
+                    await handleSession(session)
+                    return
+                }
+
+                // Listen for auth state change (catches all cases)
+                const { data: { subscription } } = supabase.auth.onAuthStateChange(
+                    async (event, session) => {
+                        if (event === 'SIGNED_IN' && session) {
+                            await handleSession(session)
+                        }
+                    }
+                )
+
+                // Also try getSession as immediate fallback
                 const { data: { session } } = await supabase.auth.getSession()
                 if (session?.user) {
                     await handleSession(session)
+                } else {
+                    // Timeout safety net
+                    setTimeout(() => {
+                        subscription.unsubscribe()
+                        if (!handled) {
+                            setStatus('Session not found, redirecting…')
+                            navigate('/login', { replace: true })
+                        }
+                    }, 8000)
                 }
+
             } catch (err) {
-                console.error('getSession error:', err)
-            }
-        }
-
-        tryGetSession()
-
-        // Timeout safety net — if nothing happens in 8s, redirect to login
-        const timeout = setTimeout(() => {
-            if (!handled) {
-                setStatus('Taking too long, redirecting…')
+                console.error('Auth callback error:', err)
+                toast.error('Authentication failed: ' + err.message)
                 navigate('/login', { replace: true })
             }
-        }, 8000)
-
-        return () => {
-            subscription.unsubscribe()
-            clearTimeout(timeout)
         }
+
+        run()
     }, [])
 
     return (
@@ -78,7 +105,6 @@ export default function AuthCallback() {
             zIndex: 10,
             background: 'var(--deep-navy)',
         }}>
-            {/* Animated logo */}
             <div style={{
                 width: 72, height: 72,
                 background: 'linear-gradient(135deg, #00bcd4, #0097a7)',

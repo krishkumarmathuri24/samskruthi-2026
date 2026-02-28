@@ -28,6 +28,8 @@ export const supabase = createClient(
         auth: {
             persistSession: hasCredentials,
             autoRefreshToken: hasCredentials,
+            flowType: 'pkce',          // Fixes Safari ITP cookie blocking
+            detectSessionInUrl: true,  // Detect OAuth callback tokens in URL
         },
         realtime: {
             params: { eventsPerSecond: 10 },
