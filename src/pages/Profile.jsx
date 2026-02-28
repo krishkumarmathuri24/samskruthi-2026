@@ -321,7 +321,7 @@ export default function Profile() {
                     <div className="grid-2" style={{ gap: 20, marginBottom: 24 }}>
                         <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                             <h3 style={{ color: 'var(--teal-glow)', fontSize: '1rem', fontWeight: 700, marginBottom: 4 }}>📚 Academic Info</h3>
-                            <Field icon={<GraduationCap size={14} />} label="College / Institution" name="college" placeholder="e.g. RV College of Engineering" />
+                            <Field icon={<GraduationCap size={14} />} label="College / Institution" name="college" placeholder="e.g. EAST POINT COLLEGE OF ENGINEERING AND TECHNOLOGY" />
                             <Field icon={<BookOpen size={14} />} label="Department / Branch" name="department" placeholder="e.g. Computer Science" />
                             {editing ? (
                                 <div>
@@ -340,7 +340,7 @@ export default function Profile() {
                             ) : (
                                 <Field icon={<GraduationCap size={14} />} label="Year of Study" name="year" placeholder="e.g. 2nd Year" />
                             )}
-                            <Field icon={<Hash size={14} />} label="Roll Number" name="roll_number" placeholder="e.g. 1RV21CS042" />
+                            <Field icon={<Hash size={14} />} label="USN Number" name="roll_number" placeholder="e.g. 1EP24CS061" />
                         </div>
 
                         <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
