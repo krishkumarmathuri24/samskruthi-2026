@@ -9,22 +9,33 @@ export const useAuthStore = create((set, get) => ({
     isAdmin: false,
 
     setUser: (user) => set({ user }),
-    setProfile: (profile) => set({ profile }),
+    setProfile: (profile) => {
+        // Always persist to localStorage so data survives page refresh
+        try { localStorage.setItem('samskruthi_profile_' + profile?.id, JSON.stringify(profile)) } catch (_) { }
+        set({ profile })
+    },
     setLoading: (loading) => set({ loading }),
 
     initialize: async () => {
         set({ loading: true })
-        // Race against a 3s timeout so the app never hangs on bad/missing credentials
-        const timeout = new Promise((resolve) => setTimeout(resolve, 3000))
+        const timeout = new Promise((resolve) => setTimeout(resolve, 5000))
         const work = async () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession()
                 if (session?.user) {
+                    // Load cached profile instantly while DB fetches
+                    try {
+                        const cached = localStorage.getItem('samskruthi_profile_' + session.user.id)
+                        if (cached) {
+                            const parsed = JSON.parse(cached)
+                            set({ profile: parsed, isAdmin: parsed.role === 'admin', user: session.user })
+                        }
+                    } catch (_) { }
                     await get().fetchProfile(session.user)
                     set({ user: session.user })
                 }
             } catch (err) {
-                console.warn('Auth init skipped (no Supabase credentials):', err.message)
+                console.warn('Auth init skipped:', err.message)
             }
         }
         await Promise.race([work(), timeout])
@@ -40,7 +51,17 @@ export const useAuthStore = create((set, get) => ({
                 .single()
 
             if (!error && data) {
-                set({ profile: data, isAdmin: data.role === 'admin' })
+                // Merge DB data with cached data (cached may have newer unsaved edits)
+                try {
+                    const cached = localStorage.getItem('samskruthi_profile_' + user.id)
+                    const cachedData = cached ? JSON.parse(cached) : null
+                    // Use cached if it's newer than DB data
+                    const merged = (cachedData && cachedData.updated_at > (data.updated_at || '')) ? cachedData : data
+                    try { localStorage.setItem('samskruthi_profile_' + user.id, JSON.stringify(merged)) } catch (_) { }
+                    set({ profile: merged, isAdmin: merged.role === 'admin' })
+                } catch (_) {
+                    set({ profile: data, isAdmin: data.role === 'admin' })
+                }
             } else {
                 // Create profile if doesn't exist
                 const newProfile = {
@@ -52,9 +73,11 @@ export const useAuthStore = create((set, get) => ({
                     created_at: new Date().toISOString(),
                 }
                 await supabase.from('profiles').upsert(newProfile)
+                try { localStorage.setItem('samskruthi_profile_' + user.id, JSON.stringify(newProfile)) } catch (_) { }
                 set({ profile: newProfile, isAdmin: false })
             }
         } catch (err) {
+            // If network fails, cached data is already loaded from initialize()
             console.error('Fetch profile error:', err)
         }
     },
