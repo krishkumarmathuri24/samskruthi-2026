@@ -60,10 +60,18 @@ export const useAuthStore = create((set, get) => ({
     },
 
     signInWithGoogle: async () => {
+        // Clear stale auth state (Safari can cache broken sessions)
+        try {
+            Object.keys(localStorage)
+                .filter(k => k.startsWith('sb-'))
+                .forEach(k => localStorage.removeItem(k))
+        } catch (e) { }
+
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
                 redirectTo: `${window.location.origin}/auth/callback`,
+                skipBrowserRedirect: true, // We handle redirect manually
                 queryParams: {
                     access_type: 'offline',
                     prompt: 'consent',
@@ -72,9 +80,10 @@ export const useAuthStore = create((set, get) => ({
         })
         console.log('signInWithOAuth result:', { data, error })
         if (error) throw error
-        // Manually redirect if the SDK didn't do it automatically (mobile fix)
         if (data?.url) {
-            window.location.href = data.url
+            // window.open with _self works in Safari async contexts
+            // where window.location.href is blocked by ITP
+            window.open(data.url, '_self')
         }
     },
 
