@@ -10,154 +10,15 @@ import {
 
 const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', 'Alumni', 'Faculty']
 
-export default function Profile() {
-    const { user, profile, fetchProfile } = useAuthStore()
-    const fileRef = useRef(null)
-    const [editing, setEditing] = useState(false)
-    const [saving, setSaving] = useState(false)
-    const [uploading, setUploading] = useState(false)
-    const [avatarPreview, setAvatarPreview] = useState(null)
-    const [avatarFile, setAvatarFile] = useState(null)
-
-    const [form, setForm] = useState({
-        name: '',
-        bio: '',
-        college: '',
-        department: '',
-        year: '',
-        roll_number: '',
-        phone: '',
-        linkedin: '',
-        instagram: '',
-        website: '',
-    })
-
-    // Populate form from profile on load
-    useEffect(() => {
-        if (profile) {
-            setForm({
-                name: profile.name || '',
-                bio: profile.bio || '',
-                college: profile.college || '',
-                department: profile.department || '',
-                year: profile.year || '',
-                roll_number: profile.roll_number || '',
-                phone: profile.phone || user?.phone || '',
-                linkedin: profile.linkedin || '',
-                instagram: profile.instagram || '',
-                website: profile.website || '',
-            })
-        }
-    }, [profile, user])
-
-    const handleAvatarChange = (e) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-        if (file.size > 5 * 1024 * 1024) {
-            toast.error('Photo must be under 5MB')
-            return
-        }
-        if (!file.type.startsWith('image/')) {
-            toast.error('Please select an image file')
-            return
-        }
-        setAvatarFile(file)
-        setAvatarPreview(URL.createObjectURL(file))
-    }
-
-    const uploadAvatar = async () => {
-        if (!avatarFile || !user) return null
-        setUploading(true)
-        try {
-            const ext = avatarFile.name.split('.').pop()
-            const path = `${user.id}/avatar.${ext}`
-            const { error } = await supabase.storage
-                .from('avatars')
-                .upload(path, avatarFile, { upsert: true })
-            if (error) throw error
-            const { data } = supabase.storage.from('avatars').getPublicUrl(path)
-            return data.publicUrl
-        } catch (err) {
-            console.error('Upload error:', err)
-            toast.error('Photo upload failed: ' + err.message)
-            return null
-        } finally {
-            setUploading(false)
-        }
-    }
-
-    const handleSave = async () => {
-        if (!form.name.trim()) {
-            toast.error('Name cannot be empty')
-            return
-        }
-        setSaving(true)
-        try {
-            let avatar_url = profile?.avatar_url || null
-
-            // Upload new avatar if selected
-            if (avatarFile) {
-                const url = await uploadAvatar()
-                if (url) avatar_url = url
-            }
-
-            const updates = {
-                id: user.id,
-                ...form,
-                avatar_url,
-                updated_at: new Date().toISOString(),
-            }
-
-            const { error } = await supabase
-                .from('profiles')
-                .upsert(updates)
-
-            if (error) throw error
-
-            await fetchProfile(user)
-            toast.success('Profile saved! ✅')
-            setEditing(false)
-            setAvatarFile(null)
-            setAvatarPreview(null)
-        } catch (err) {
-            console.error('Save error:', err)
-            toast.error('Failed to save: ' + err.message)
-        } finally {
-            setSaving(false)
-        }
-    }
-
-    const handleCancel = () => {
-        setEditing(false)
-        setAvatarFile(null)
-        setAvatarPreview(null)
-        if (profile) {
-            setForm({
-                name: profile.name || '',
-                bio: profile.bio || '',
-                college: profile.college || '',
-                department: profile.department || '',
-                year: profile.year || '',
-                roll_number: profile.roll_number || '',
-                phone: profile.phone || user?.phone || '',
-                linkedin: profile.linkedin || '',
-                instagram: profile.instagram || '',
-                website: profile.website || '',
-            })
-        }
-    }
-
-    const avatarSrc = avatarPreview || profile?.avatar_url || null
-    const displayName = profile?.name || form.name || 'User'
-    const initials = displayName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'
-
-    const Field = ({ icon, label, name, placeholder, type = 'text', as = 'input' }) => (
+// ⚠️ Field MUST be defined outside Profile so React doesn't remount inputs on every keystroke
+function Field({ icon, label, name, placeholder, type = 'text', as: As = 'input', editing, form, setForm }) {
+    return (
         <div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
                 {icon} {label}
             </label>
             {editing ? (
-                as === 'textarea' ? (
+                As === 'textarea' ? (
                     <textarea
                         rows={3}
                         className="form-input"
@@ -191,6 +52,105 @@ export default function Profile() {
             )}
         </div>
     )
+}
+
+export default function Profile() {
+    const { user, profile, fetchProfile } = useAuthStore()
+    const fileRef = useRef(null)
+    const [editing, setEditing] = useState(false)
+    const [saving, setSaving] = useState(false)
+    const [uploading, setUploading] = useState(false)
+    const [avatarPreview, setAvatarPreview] = useState(null)
+    const [avatarFile, setAvatarFile] = useState(null)
+
+    const [form, setForm] = useState({
+        name: '',
+        bio: '',
+        college: '',
+        department: '',
+        year: '',
+        roll_number: '',
+        phone: '',
+        linkedin: '',
+        instagram: '',
+        website: '',
+    })
+
+    useEffect(() => {
+        if (profile) {
+            setForm({
+                name: profile.name || '',
+                bio: profile.bio || '',
+                college: profile.college || '',
+                department: profile.department || '',
+                year: profile.year || '',
+                roll_number: profile.roll_number || '',
+                phone: profile.phone || user?.phone || '',
+                linkedin: profile.linkedin || '',
+                instagram: profile.instagram || '',
+                website: profile.website || '',
+            })
+        }
+    }, [profile, user])
+
+    const handleAvatarChange = (e) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        if (file.size > 5 * 1024 * 1024) { toast.error('Photo must be under 5MB'); return }
+        if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return }
+        setAvatarFile(file)
+        setAvatarPreview(URL.createObjectURL(file))
+    }
+
+    const uploadAvatar = async () => {
+        if (!avatarFile || !user) return null
+        setUploading(true)
+        try {
+            const ext = avatarFile.name.split('.').pop()
+            const path = `${user.id}/avatar.${ext}`
+            const { error } = await supabase.storage.from('avatars').upload(path, avatarFile, { upsert: true })
+            if (error) throw error
+            const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+            return data.publicUrl
+        } catch (err) {
+            toast.error('Photo upload failed: ' + err.message)
+            return null
+        } finally {
+            setUploading(false)
+        }
+    }
+
+    const handleSave = async () => {
+        if (!form.name.trim()) { toast.error('Name cannot be empty'); return }
+        setSaving(true)
+        try {
+            let avatar_url = profile?.avatar_url || null
+            if (avatarFile) { const url = await uploadAvatar(); if (url) avatar_url = url }
+            const { error } = await supabase.from('profiles').upsert({ id: user.id, ...form, avatar_url, updated_at: new Date().toISOString() })
+            if (error) throw error
+            await fetchProfile(user)
+            toast.success('Profile saved! ✅')
+            setEditing(false); setAvatarFile(null); setAvatarPreview(null)
+        } catch (err) {
+            toast.error('Failed to save: ' + err.message)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const handleCancel = () => {
+        setEditing(false); setAvatarFile(null); setAvatarPreview(null)
+        if (profile) setForm({ name: profile.name || '', bio: profile.bio || '', college: profile.college || '', department: profile.department || '', year: profile.year || '', roll_number: profile.roll_number || '', phone: profile.phone || user?.phone || '', linkedin: profile.linkedin || '', instagram: profile.instagram || '', website: profile.website || '' })
+    }
+
+    const avatarSrc = avatarPreview || profile?.avatar_url || null
+    const displayName = profile?.name || form.name || 'User'
+    const initials = displayName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'
+
+    // Shared props passed to every Field so they can read/write form state
+    const fp = { editing, form, setForm }
+
+
 
     return (
         <div style={{ paddingTop: 'var(--nav-height)', minHeight: '100vh', position: 'relative', zIndex: 10 }}>
@@ -321,8 +281,8 @@ export default function Profile() {
                     <div className="grid-2" style={{ gap: 20, marginBottom: 24 }}>
                         <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                             <h3 style={{ color: 'var(--teal-glow)', fontSize: '1rem', fontWeight: 700, marginBottom: 4 }}>📚 Academic Info</h3>
-                            <Field icon={<GraduationCap size={14} />} label="College / Institution" name="college" placeholder="e.g. EAST POINT COLLEGE OF ENGINEERING AND TECHNOLOGY" />
-                            <Field icon={<BookOpen size={14} />} label="Department / Branch" name="department" placeholder="e.g. Computer Science" />
+                            <Field {...fp} icon={<GraduationCap size={14} />} label="College / Institution" name="college" placeholder="e.g. EAST POINT COLLEGE OF ENGINEERING AND TECHNOLOGY" />
+                            <Field {...fp} icon={<BookOpen size={14} />} label="Department / Branch" name="department" placeholder="e.g. Computer Science" />
                             {editing ? (
                                 <div>
                                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
@@ -338,15 +298,15 @@ export default function Profile() {
                                     </select>
                                 </div>
                             ) : (
-                                <Field icon={<GraduationCap size={14} />} label="Year of Study" name="year" placeholder="e.g. 2nd Year" />
+                                <Field {...fp} icon={<GraduationCap size={14} />} label="Year of Study" name="year" placeholder="e.g. 2nd Year" />
                             )}
-                            <Field icon={<Hash size={14} />} label="USN Number" name="roll_number" placeholder="e.g. 1EP24CS061" />
+                            <Field {...fp} icon={<Hash size={14} />} label="USN Number" name="roll_number" placeholder="e.g. 1EP24CS061" />
                         </div>
 
                         <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                             <h3 style={{ color: 'var(--teal-glow)', fontSize: '1rem', fontWeight: 700, marginBottom: 4 }}>👤 Personal Info</h3>
-                            <Field icon={<User size={14} />} label="Bio" name="bio" placeholder="Tell us about yourself…" as="textarea" />
-                            <Field icon={<Phone size={14} />} label="Phone Number" name="phone" placeholder="+91 98765 43210" type="tel" />
+                            <Field {...fp} icon={<User size={14} />} label="Bio" name="bio" placeholder="Tell us about yourself…" as="textarea" />
+                            <Field {...fp} icon={<Phone size={14} />} label="Phone Number" name="phone" placeholder="+91 98765 43210" type="tel" />
                         </div>
                     </div>
 
@@ -354,9 +314,9 @@ export default function Profile() {
                     <div className="glass-card">
                         <h3 style={{ color: 'var(--teal-glow)', fontSize: '1rem', fontWeight: 700, marginBottom: 20 }}>🔗 Social Links</h3>
                         <div className="grid-3" style={{ gap: 16 }}>
-                            <Field icon={<Linkedin size={14} />} label="LinkedIn" name="linkedin" placeholder="linkedin.com/in/yourname" />
-                            <Field icon={<Instagram size={14} />} label="Instagram" name="instagram" placeholder="@yourhandle" />
-                            <Field icon={<Globe size={14} />} label="Website / Portfolio" name="website" placeholder="yoursite.com" />
+                            <Field {...fp} icon={<Linkedin size={14} />} label="LinkedIn" name="linkedin" placeholder="linkedin.com/in/yourname" />
+                            <Field {...fp} icon={<Instagram size={14} />} label="Instagram" name="instagram" placeholder="@yourhandle" />
+                            <Field {...fp} icon={<Globe size={14} />} label="Website / Portfolio" name="website" placeholder="yoursite.com" />
                         </div>
                     </div>
 
