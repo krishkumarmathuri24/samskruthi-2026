@@ -165,7 +165,7 @@ export default function Profile() {
             const savePromise = supabase.from('profiles').upsert(dbUpdate)
             const saveTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
             const { error } = await Promise.race([savePromise, saveTimeout])
-            if (error) console.error('DB sync failed:', error.message)
+            if (error) toast.error('DB error: ' + error.message, { duration: 8000 })
 
         } catch (err) {
             console.error('Save error:', err)

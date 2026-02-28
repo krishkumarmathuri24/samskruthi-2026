@@ -10,8 +10,9 @@ export const useAuthStore = create((set, get) => ({
 
     setUser: (user) => set({ user }),
     setProfile: (profile) => {
-        // Always persist to localStorage so data survives page refresh
-        try { localStorage.setItem('samskruthi_profile_' + profile?.id, JSON.stringify(profile)) } catch (_) { }
+        if (profile?.id) {
+            try { localStorage.setItem('sk_profile_' + profile.id, JSON.stringify(profile)) } catch (_) { }
+        }
         set({ profile })
     },
     setLoading: (loading) => set({ loading }),
@@ -23,12 +24,12 @@ export const useAuthStore = create((set, get) => ({
             try {
                 const { data: { session } } = await supabase.auth.getSession()
                 if (session?.user) {
-                    // Load cached profile instantly while DB fetches
+                    // Load cache FIRST for instant display
                     try {
-                        const cached = localStorage.getItem('samskruthi_profile_' + session.user.id)
+                        const cached = localStorage.getItem('sk_profile_' + session.user.id)
                         if (cached) {
-                            const parsed = JSON.parse(cached)
-                            set({ profile: parsed, isAdmin: parsed.role === 'admin', user: session.user })
+                            const p = JSON.parse(cached)
+                            set({ profile: p, isAdmin: p.role === 'admin', user: session.user })
                         }
                     } catch (_) { }
                     await get().fetchProfile(session.user)
@@ -43,42 +44,43 @@ export const useAuthStore = create((set, get) => ({
     },
 
     fetchProfile: async (user) => {
+        const KEY = 'sk_profile_' + user.id
+        let cachedProfile = null
+        try { const c = localStorage.getItem(KEY); if (c) cachedProfile = JSON.parse(c) } catch (_) { }
+
         try {
             const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', user.id)
-                .single()
+                .from('profiles').select('*').eq('id', user.id).single()
 
             if (!error && data) {
-                // Merge DB data with cached data (cached may have newer unsaved edits)
-                try {
-                    const cached = localStorage.getItem('samskruthi_profile_' + user.id)
-                    const cachedData = cached ? JSON.parse(cached) : null
-                    // Use cached if it's newer than DB data
-                    const merged = (cachedData && cachedData.updated_at > (data.updated_at || '')) ? cachedData : data
-                    try { localStorage.setItem('samskruthi_profile_' + user.id, JSON.stringify(merged)) } catch (_) { }
-                    set({ profile: merged, isAdmin: merged.role === 'admin' })
-                } catch (_) {
-                    set({ profile: data, isAdmin: data.role === 'admin' })
-                }
+                // Use whichever is newer — cache wins if user edited recently
+                const dbTime = data.updated_at || data.created_at || ''
+                const cacheTime = cachedProfile?.updated_at || ''
+                const profile = (cachedProfile && cacheTime > dbTime) ? cachedProfile : data
+                try { localStorage.setItem(KEY, JSON.stringify(profile)) } catch (_) { }
+                set({ profile, isAdmin: profile.role === 'admin' })
+            } else if (cachedProfile) {
+                // DB read failed — protect cached data, never overwrite with 'User'
+                set({ profile: cachedProfile, isAdmin: cachedProfile.role === 'admin' })
             } else {
-                // Create profile if doesn't exist
+                // First-ever login — create fresh profile
                 const newProfile = {
                     id: user.id,
-                    email: user.email,
-                    name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+                    email: user.email || null,
+                    name: user.user_metadata?.full_name || user.email?.split('@')[0] || null,
                     avatar_url: user.user_metadata?.avatar_url || null,
                     role: 'user',
                     created_at: new Date().toISOString(),
+                    updated_at: new Date(0).toISOString(), // epoch — any edit will be newer
                 }
-                await supabase.from('profiles').upsert(newProfile)
-                try { localStorage.setItem('samskruthi_profile_' + user.id, JSON.stringify(newProfile)) } catch (_) { }
+                try { await supabase.from('profiles').upsert(newProfile) } catch (_) { }
+                try { localStorage.setItem(KEY, JSON.stringify(newProfile)) } catch (_) { }
                 set({ profile: newProfile, isAdmin: false })
             }
         } catch (err) {
-            // If network fails, cached data is already loaded from initialize()
-            console.error('Fetch profile error:', err)
+            // Network failed — cached data already loaded, leave it
+            if (cachedProfile) set({ profile: cachedProfile, isAdmin: cachedProfile.role === 'admin' })
+            console.error('fetchProfile error:', err.message)
         }
     },
 
