@@ -131,19 +131,25 @@ export default function Profile() {
 
             const updated = { id: user.id, ...form, avatar_url, updated_at: new Date().toISOString() }
 
-            const { error } = await supabase.from('profiles').upsert(updated)
-            if (error) throw error
-
-            // ✅ Optimistic update — instantly reflect in navbar without extra API call
+            // ✅ Optimistic update FIRST — immediately updates navbar/name everywhere
             setProfile({ ...profile, ...updated })
-
-            toast.success('Profile saved! ✅')
             setEditing(false); setAvatarFile(null); setAvatarPreview(null)
-
-            // Navigate home so user sees updated avatar/name in navbar
+            toast.success('Profile saved! ✅')
             navigate('/')
+
+            // Save to DB in background with 8-second timeout
+            const savePromise = supabase.from('profiles').upsert(updated)
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Save timed out — check internet connection')), 8000)
+            )
+            const { error } = await Promise.race([savePromise, timeoutPromise])
+            if (error) {
+                console.error('Background save failed:', error)
+                toast.error('Could not sync to server: ' + error.message, { duration: 5000 })
+            }
         } catch (err) {
-            toast.error('Failed to save: ' + err.message)
+            console.error('Save error:', err)
+            toast.error('Sync failed: ' + err.message, { duration: 5000 })
         } finally {
             setSaving(false)
         }
