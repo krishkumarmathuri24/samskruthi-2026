@@ -238,7 +238,8 @@ export default function Navbar() {
                                         {isAdmin && <div className="badge" style={{ marginTop: 8 }}>Admin</div>}
                                     </div>
                                     {[
-                                        { icon: <User size={15} />, label: 'Dashboard', to: '/dashboard' },
+                                        { icon: <User size={15} />, label: 'My Profile', to: '/profile' },
+                                        { icon: <LayoutDashboard size={15} />, label: 'Dashboard', to: '/dashboard' },
                                         ...(isAdmin ? [{ icon: <Shield size={15} />, label: 'Admin Panel', to: '/admin' }] : []),
                                     ].map((item) => (
                                         <Link key={item.to} to={item.to} onClick={() => setUserOpen(false)} style={{

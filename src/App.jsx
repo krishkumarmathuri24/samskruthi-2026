@@ -19,6 +19,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import AuthCallback from './pages/AuthCallback'
+import Profile from './pages/Profile'
 
 function ProtectedRoute({ children, adminOnly = false }) {
     const { user, isAdmin, loading } = useAuthStore()
@@ -99,6 +100,11 @@ export default function App() {
                         <Route path="/admin" element={
                             <ProtectedRoute adminOnly>
                                 <AdminDashboard />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/profile" element={
+                            <ProtectedRoute>
+                                <Profile />
                             </ProtectedRoute>
                         } />
                     </Routes>
