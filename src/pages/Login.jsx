@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '../store/store'
 import toast from 'react-hot-toast'
-import { Phone, ArrowRight, Shield } from 'lucide-react'
+import { Chrome, Phone, ArrowRight, Shield } from 'lucide-react'
 
 export default function Login() {
     const { signInWithGoogle, signInWithPhone, verifyOtp, loading } = useAuthStore()
