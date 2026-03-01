@@ -155,51 +155,42 @@ export const useTicketStore = create((set, get) => ({
     bookTicket: async (eventId, userId) => {
         set({ loading: true })
         try {
-            // Check capacity
-            const { data: event } = await supabase
-                .from('events')
-                .select('capacity, tickets_booked, title')
-                .eq('id', eventId)
-                .single()
-
+            const { data: event } = await supabase.from('events').select('capacity, tickets_booked').eq('id', eventId).single()
             if (!event) throw new Error('Event not found')
             if (event.tickets_booked >= event.capacity) throw new Error('Event is fully booked')
 
-            // Check duplicate
-            const { data: existing } = await supabase
-                .from('tickets')
-                .select('id')
-                .eq('event_id', eventId)
-                .eq('user_id', userId)
-                .single()
-
+            const { data: existing } = await supabase.from('tickets').select('id').eq('event_id', eventId).eq('user_id', userId).maybeSingle()
             if (existing) throw new Error('You already have a ticket for this event')
 
-            // Generate ticket code
             const ticketCode = `SKR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`
-
             const { data: ticket, error } = await supabase
                 .from('tickets')
-                .insert({
-                    event_id: eventId,
-                    user_id: userId,
-                    ticket_code: ticketCode,
-                    status: 'confirmed',
-                    created_at: new Date().toISOString(),
-                })
-                .select()
+                .insert({ event_id: eventId, user_id: userId, ticket_code: ticketCode, status: 'confirmed', created_at: new Date().toISOString() })
+                .select('*, events(*)')
                 .single()
-
             if (error) throw error
 
-            // Increment booked count
-            await supabase.rpc('increment_tickets', { event_id: eventId })
+            // Increment booked count (fire and forget)
+            supabase.rpc('increment_tickets', { event_id: eventId }).then(() => { })
 
             set((state) => ({ userTickets: [ticket, ...state.userTickets] }))
             return ticket
         } finally {
             set({ loading: false })
         }
+    },
+
+    cancelTicket: async (ticketId, eventId) => {
+        const { error } = await supabase.from('tickets').delete().eq('id', ticketId)
+        if (error) throw error
+        // Decrement count
+        await supabase.rpc('decrement_tickets', { event_id: eventId }).catch(() => {
+            // Fallback: manual decrement
+            supabase.from('events').select('tickets_booked').eq('id', eventId).single().then(({ data }) => {
+                if (data) supabase.from('events').update({ tickets_booked: Math.max(0, data.tickets_booked - 1) }).eq('id', eventId).then(() => { })
+            })
+        })
+        set((state) => ({ userTickets: state.userTickets.filter(t => t.id !== ticketId) }))
     },
 }))
 
@@ -208,13 +199,12 @@ export const useEventsStore = create((set) => ({
     events: [],
     loading: false,
 
+    setEvents: (events) => set({ events }),
+
     fetchEvents: async () => {
         set({ loading: true })
-        const { data, error } = await supabase
-            .from('events')
-            .select('*')
-            .order('event_date', { ascending: true })
-        if (!error) set({ events: data || [] })
+        const { data, error } = await supabase.from('events').select('*').order('event_date', { ascending: true })
+        if (!error && data) set({ events: data })
         set({ loading: false })
     },
 
