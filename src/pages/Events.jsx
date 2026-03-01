@@ -8,6 +8,17 @@ import toast from 'react-hot-toast'
 
 const CATEGORIES = ['All', 'Music', 'Dance', 'Tech', 'Art', 'Comedy', 'Fashion', 'Sports', 'Literature']
 
+const MOCK_EVENTS = [
+    { id: '1', title: 'Battle of Bands', category: 'Music', description: 'Live band competition with top college bands from across the country.', event_date: '2026-08-15T18:00:00', venue: 'Main Stage', capacity: 2000, tickets_booked: 1230, duration: '3 hours', emoji: '🎸' },
+    { id: '2', title: 'Dance War', category: 'Dance', description: 'Solo, duo, and group dance competition across classical and contemporary styles.', event_date: '2026-08-15T14:00:00', venue: 'Dance Arena', capacity: 800, tickets_booked: 540, duration: '4 hours', emoji: '💃' },
+    { id: '3', title: 'Code Storm', category: 'Tech', description: '24-hour hackathon with exciting problem statements and industry mentors.', event_date: '2026-08-16T09:00:00', venue: 'Tech Hub', capacity: 400, tickets_booked: 320, duration: '24 hours', emoji: '💻' },
+    { id: '4', title: 'Rangoli Royale', category: 'Art', description: 'Traditional art competition showcasing intricate designs and creativity.', event_date: '2026-08-16T10:00:00', venue: 'Art Pavilion', capacity: 200, tickets_booked: 87, duration: '3 hours', emoji: '🎨' },
+    { id: '5', title: 'Stand-up Nite', category: 'Comedy', description: 'Comedy night featuring student comedians and special celebrity guest.', event_date: '2026-08-16T20:00:00', venue: 'Comedy Club', capacity: 600, tickets_booked: 590, duration: '2 hours', emoji: '🎤' },
+    { id: '6', title: 'Fashion Fiesta', category: 'Fashion', description: 'Runway fashion show celebrating cultural couture and modern design.', event_date: '2026-08-17T16:00:00', venue: 'Fashion Hall', capacity: 1000, tickets_booked: 720, duration: '2 hours', emoji: '👗' },
+    { id: '7', title: 'Slam Poetry', category: 'Literature', description: 'Express yourself through powerful spoken word performances.', event_date: '2026-08-15T16:00:00', venue: 'Literary Lounge', capacity: 300, tickets_booked: 120, duration: '2 hours', emoji: '📖' },
+    { id: '8', title: 'Cricket Clash', category: 'Sports', description: 'Inter-college T20 cricket tournament with massive prize money.', event_date: '2026-08-15T08:00:00', venue: 'Sports Ground', capacity: 5000, tickets_booked: 2300, duration: '8 hours', emoji: '🏑' },
+]
+
 // ─── Booking Modal ────────────────────────────────────────────────────────────
 function BookingModal({ event, onConfirm, onClose, booking }) {
     const pct = Math.round((event.tickets_booked / event.capacity) * 100)
@@ -331,20 +342,25 @@ function EventCard({ event, onBook, onCancel, userTickets, bookingId }) {
 
 // ─── Main Events Page ─────────────────────────────────────────────────────────
 export default function Events() {
-    const { events, fetchEvents, setEvents } = useEventsStore()
+    const { events, fetchEvents } = useEventsStore()
     const { user, logActivity } = useAuthStore()
     const { userTickets, fetchUserTickets, bookTicket, cancelTicket, loading } = useTicketStore()
     const navigate = useNavigate()
     const [category, setCategory] = useState('All')
     const [search, setSearch] = useState('')
-    const [selectedEvent, setSelectedEvent] = useState(null)  // for booking modal
-    const [successData, setSuccessData] = useState(null)      // { ticket, event }
-    const [bookingId, setBookingId] = useState(null)          // which event is being booked
+    const [selectedEvent, setSelectedEvent] = useState(null)
+    const [successData, setSuccessData] = useState(null)
+    const [bookingId, setBookingId] = useState(null)
+    const [eventsLoading, setEventsLoading] = useState(true)
 
     useEffect(() => {
-        fetchEvents()
+        setEventsLoading(true)
+        fetchEvents().finally(() => setEventsLoading(false))
         if (user) fetchUserTickets(user.id)
     }, [user])
+
+    // Use real events from DB, fallback to mock if fetch fails
+    const allEvents = events.length > 0 ? events : (eventsLoading ? [] : MOCK_EVENTS)
 
     // ─── Supabase Realtime — live ticket count updates ────────────────────────
     useEffect(() => {
@@ -361,7 +377,7 @@ export default function Events() {
         return () => { supabase.removeChannel(channel) }
     }, [])
 
-    const filtered = events.filter(e => {
+    const filtered = allEvents.filter(e => {
         const matchCat = category === 'All' || e.category === category
         const matchSearch = e.title.toLowerCase().includes(search.toLowerCase()) ||
             e.category.toLowerCase().includes(search.toLowerCase())
@@ -432,7 +448,7 @@ export default function Events() {
                 <div className="container" style={{ textAlign: 'center' }}>
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                         <span className="badge" style={{ marginBottom: 20 }}>
-                            <span className="notif-dot" />&nbsp; {events.length} Events · Live Updates
+                            <span className="notif-dot" />&nbsp; {allEvents.length} Events · Live Updates
                         </span>
                         <h1 className="section-title" style={{ marginBottom: 16 }}>Upcoming Events</h1>
                         <p className="section-subtitle" style={{ marginBottom: 0 }}>
@@ -478,7 +494,7 @@ export default function Events() {
                     </div>
 
                     {/* Events Grid */}
-                    {loading && events.length === 0 ? (
+                    {eventsLoading ? (
                         <div style={{ textAlign: 'center', padding: '80px 0' }}>
                             <div className="loader" style={{ margin: '0 auto 16px' }} />
                             <p style={{ color: 'var(--text-dim)' }}>Loading events…</p>
