@@ -243,7 +243,7 @@ function TicketCard({ ticket, onCancel, onShowQR }) {
 export default function Dashboard() {
     const { user, profile, signOut, logActivity } = useAuthStore()
     const { userTickets, fetchUserTickets, cancelTicket, loading } = useTicketStore()
-    const { notifications, unreadCount, fetchNotifications, markRead, subscribe } = useNotifStore()
+    const { notifications, unreadCount, fetchNotifications, markRead } = useNotifStore()
     const navigate = useNavigate()
     const [qrTicket, setQrTicket] = useState(null)
     const [showNotifs, setShowNotifs] = useState(false)
@@ -251,10 +251,8 @@ export default function Dashboard() {
     useEffect(() => {
         if (user) {
             fetchUserTickets(user.id)
-            fetchNotifications(user.id)
+            fetchNotifications(user.id)  // load initial data; Navbar already has the realtime sub
             logActivity('DASHBOARD_VISIT')
-            const unsub = subscribe(user.id)
-            return unsub
         }
     }, [user])
 

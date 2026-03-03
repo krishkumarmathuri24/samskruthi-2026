@@ -152,13 +152,18 @@ export const useTicketStore = create((set, get) => ({
 
     fetchUserTickets: async (userId) => {
         set({ loading: true })
-        const { data, error } = await supabase
-            .from('tickets')
-            .select('*, events(*)')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-        if (!error) set({ userTickets: data || [] })
-        set({ loading: false })
+        try {
+            const { data, error } = await supabase
+                .from('tickets')
+                .select('*, events(*)')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+            if (!error && data) set({ userTickets: data })
+        } catch (err) {
+            console.warn('fetchUserTickets failed:', err.message)
+        } finally {
+            set({ loading: false })
+        }
     },
 
     bookTicket: async (eventId, userId) => {
@@ -271,18 +276,21 @@ export const useNotifStore = create((set, get) => ({
     unreadCount: 0,
 
     fetchNotifications: async (userId) => {
-        const { data } = await supabase
-            .from('notifications')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(20)
-
-        if (data) {
-            set({
-                notifications: data,
-                unreadCount: data.filter((n) => !n.read).length,
-            })
+        try {
+            const { data, error } = await supabase
+                .from('notifications')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(20)
+            if (!error && data) {
+                set({
+                    notifications: data,
+                    unreadCount: data.filter((n) => !n.read).length,
+                })
+            }
+        } catch (err) {
+            console.warn('fetchNotifications failed:', err.message)
         }
     },
 
