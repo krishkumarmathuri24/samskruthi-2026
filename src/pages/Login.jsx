@@ -22,8 +22,12 @@ export default function Login() {
         ? `${supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${callbackUrl}`
         : '#'
 
-    const handleGoogle = () => {
-        signInWithGoogle()
+    const handleGoogle = async () => {
+        try {
+            await signInWithGoogle()
+        } catch (err) {
+            toast.error('Google sign in failed: ' + err.message)
+        }
     }
 
     const handleSendOtp = async (e) => {
@@ -149,10 +153,10 @@ export default function Login() {
                             }}>
                                 🔐 We use Google OAuth for secure authentication. Your data is never shared with third parties.
                             </div>
-                            {/* Pure HTML anchor — works in ALL browsers including Safari normal mode */}
-                            <a
+                            {/* Use button + signInWithOAuth for proper PKCE flow in all browsers */}
+                            <button
                                 id="google-signin-btn"
-                                href={googleAuthUrl}
+                                onClick={handleGoogle}
                                 className="btn"
                                 style={{
                                     width: '100%',
@@ -163,10 +167,11 @@ export default function Login() {
                                     gap: 12,
                                     fontSize: '1rem',
                                     padding: '14px 24px',
-                                    textDecoration: 'none',
                                     display: 'flex',
                                     alignItems: 'center',
                                     boxSizing: 'border-box',
+                                    cursor: 'pointer',
+                                    border: 'none',
                                 }}
                             >
                                 <svg width="20" height="20" viewBox="0 0 48 48">
@@ -176,7 +181,7 @@ export default function Login() {
                                     <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
                                 </svg>
                                 Continue with Google
-                            </a>
+                            </button>
                         </motion.div>
                     )}
 

@@ -28,7 +28,8 @@ export const supabase = createClient(
         auth: {
             persistSession: hasCredentials,
             autoRefreshToken: hasCredentials,
-            detectSessionInUrl: true,
+            flowType: 'pkce',         // Essential for Google OAuth in Safari private mode
+            detectSessionInUrl: true, // Catches OAuth code in callback URL
             storageKey: 'sk-auth-token',
         },
         realtime: {

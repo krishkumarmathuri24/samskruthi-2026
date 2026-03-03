@@ -84,12 +84,21 @@ export const useAuthStore = create((set, get) => ({
         }
     },
 
-    signInWithGoogle: () => {
-        // Direct navigation — no async, no API call, not blocked by Safari ITP or popup blocker
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-        const redirectTo = encodeURIComponent(`${window.location.origin}/auth/callback`)
-        const authUrl = `${supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${redirectTo}`
-        window.location.href = authUrl
+    signInWithGoogle: async () => {
+        // supabase.auth.signInWithOAuth handles PKCE automatically:
+        // generates code_verifier → stores in localStorage → redirects to Google
+        // Works in ALL browsers including Safari private mode
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${window.location.origin}/auth/callback`,
+                queryParams: { access_type: 'offline', prompt: 'select_account' },
+            },
+        })
+        if (error) {
+            console.error('Google sign in error:', error)
+            throw error
+        }
     },
 
     signInWithPhone: async (phone) => {
