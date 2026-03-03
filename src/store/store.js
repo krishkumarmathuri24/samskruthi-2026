@@ -154,50 +154,57 @@ export const useTicketStore = create((set, get) => ({
     fetchUserTickets: async (userId) => {
         set({ loading: true })
         try {
-            const { data, error } = await supabase
+            const query = supabase
                 .from('tickets')
                 .select('*, events(*)')
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false })
+            const timeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('timeout')), 8000)
+            )
+            const { data, error } = await Promise.race([query, timeout])
             if (!error && data) set({ userTickets: data })
+            else if (error) console.warn('fetchUserTickets DB error:', error.message)
         } catch (err) {
             console.warn('fetchUserTickets failed:', err.message)
         } finally {
-            set({ loading: false })
+            set({ loading: false })  // ALWAYS clears — no more infinite spinner
         }
     },
 
     bookTicket: async (eventId, userId) => {
         set({ booking: true })
         try {
-            const { data: event } = await supabase.from('events').select('capacity, tickets_booked, title, event_date, venue').eq('id', eventId).single()
-            if (!event) throw new Error('Event not found')
+            // Check capacity
+            const { data: event, error: evErr } = await supabase
+                .from('events').select('capacity, tickets_booked, title, event_date, venue')
+                .eq('id', eventId).single()
+            if (evErr || !event) throw new Error('Event not found')
             if (event.tickets_booked >= event.capacity) throw new Error('Event is fully booked')
 
-            const { data: existing } = await supabase.from('tickets').select('id').eq('event_id', eventId).eq('user_id', userId).maybeSingle()
+            // Check duplicate
+            const { data: existing } = await supabase
+                .from('tickets').select('id')
+                .eq('event_id', eventId).eq('user_id', userId).maybeSingle()
             if (existing) throw new Error('You already have a ticket for this event')
 
+            // Insert ticket
             const ticketCode = `SKR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`
             const { data: ticket, error } = await supabase
                 .from('tickets')
                 .insert({ event_id: eventId, user_id: userId, ticket_code: ticketCode, status: 'confirmed', created_at: new Date().toISOString() })
                 .select('*, events(*)')
                 .single()
-            if (error) throw error
+            if (error) throw new Error(error.message)
 
-            // Increment count (fire and forget)
-            supabase.rpc('increment_tickets', { event_id: eventId }).then(() => { })
-
-            // Send in-app notification (fire and forget — NEVER blocks ticket save)
-            try {
-                await supabase.from('notifications').insert({
-                    user_id: userId,
-                    title: `🎫 Ticket Confirmed — ${event.title}`,
-                    message: `Your ticket code is ${ticketCode}. Event on ${new Date(event.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })} at ${event.venue}.`,
-                    read: false,
-                    created_at: new Date().toISOString(),
-                })
-            } catch (_) { /* notification failure must never block the ticket */ }
+            // Fire and forget — never block the ticket
+            supabase.rpc('increment_tickets', { event_id: eventId }).catch(() => { })
+            supabase.from('notifications').insert({
+                user_id: userId,
+                title: `🎫 Ticket Confirmed — ${event.title}`,
+                message: `Code: ${ticketCode}. Event on ${new Date(event.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })} at ${event.venue}.`,
+                read: false, created_at: new Date().toISOString(),
+            }).catch(() => { })
 
             set((state) => ({ userTickets: [ticket, ...state.userTickets] }))
             return ticket

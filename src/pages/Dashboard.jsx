@@ -248,14 +248,23 @@ export default function Dashboard() {
     const [qrTicket, setQrTicket] = useState(null)
     const [showNotifs, setShowNotifs] = useState(false)
 
+    // Safety net: force loading off after 8s no matter what
+    const [loadingSafe, setLoadingSafe] = useState(true)
+    useEffect(() => {
+        const t = setTimeout(() => setLoadingSafe(false), 8000)
+        return () => clearTimeout(t)
+    }, [])
+    const showLoading = loading && loadingSafe
+
     useEffect(() => {
         if (user?.id) {
+            setLoadingSafe(true)                    // reset safety on user change
+            setTimeout(() => setLoadingSafe(false), 8000)
             fetchUserTickets(user.id)
             fetchNotifications(user.id)
             logActivity('DASHBOARD_VISIT')
         }
-    }, [user?.id])  // user.id is a stable string — avoids infinite re-fetch from object reference changes
-
+    }, [user?.id])
 
     const handleSignOut = async () => {
         await signOut()
@@ -394,12 +403,13 @@ export default function Dashboard() {
                         </Link>
                     </div>
 
-                    {loading ? (
+                    {showLoading ? (
                         <div style={{ textAlign: 'center', padding: '60px 0' }}>
                             <div className="loader" style={{ margin: '0 auto 12px' }} />
                             <p style={{ color: 'var(--text-dim)' }}>Loading your tickets…</p>
                         </div>
                     ) : userTickets.length === 0 ? (
+
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                             className="glass-card" style={{ textAlign: 'center', padding: '60px 40px' }}>
                             <div style={{ fontSize: '4rem', marginBottom: 16 }}>🎫</div>
