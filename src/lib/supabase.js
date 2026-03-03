@@ -11,29 +11,17 @@ const hasCredentials =
     supabaseUrl.startsWith('https://')
 
 if (!hasCredentials) {
-    console.warn(
-        '⚠️  Supabase credentials not configured.\n' +
-        'The app will run in DEMO mode (mock data shown, auth disabled).\n' +
-        'To enable full features, update your .env file:\n' +
-        '  VITE_SUPABASE_URL=https://your-project-id.supabase.co\n' +
-        '  VITE_SUPABASE_ANON_KEY=your_actual_anon_key'
-    )
+    console.warn('⚠️  Supabase credentials not configured. Running in DEMO mode.')
 }
 
-// Use real credentials or safe fallback that won't crash the client constructor
 export const supabase = createClient(
     hasCredentials ? supabaseUrl : 'https://placeholder.supabase.co',
     hasCredentials ? supabaseAnonKey : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.placeholder',
     {
         auth: {
-            persistSession: hasCredentials,
-            autoRefreshToken: hasCredentials,
-            flowType: 'implicit',     // PKCE was timing out; implicit works in all browsers incl. Safari private
-            detectSessionInUrl: true, // auto-reads #access_token from callback URL hash
-            storageKey: 'sk-auth-token',
-        },
-        realtime: {
-            params: { eventsPerSecond: 10 },
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
         },
     }
 )
