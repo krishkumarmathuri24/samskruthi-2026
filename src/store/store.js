@@ -164,7 +164,7 @@ export const useTicketStore = create((set, get) => ({
     bookTicket: async (eventId, userId) => {
         set({ loading: true })
         try {
-            const { data: event } = await supabase.from('events').select('capacity, tickets_booked').eq('id', eventId).single()
+            const { data: event } = await supabase.from('events').select('capacity, tickets_booked, title, event_date, venue').eq('id', eventId).single()
             if (!event) throw new Error('Event not found')
             if (event.tickets_booked >= event.capacity) throw new Error('Event is fully booked')
 
@@ -179,8 +179,17 @@ export const useTicketStore = create((set, get) => ({
                 .single()
             if (error) throw error
 
-            // Increment booked count (fire and forget)
+            // Increment count (fire and forget)
             supabase.rpc('increment_tickets', { event_id: eventId }).then(() => { })
+
+            // Send in-app booking confirmation notification
+            supabase.from('notifications').insert({
+                user_id: userId,
+                title: `🎫 Ticket Confirmed — ${event.title}`,
+                message: `Your ticket code is ${ticketCode}. Event on ${new Date(event.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })} at ${event.venue}.`,
+                read: false,
+                created_at: new Date().toISOString(),
+            }).then(() => { })
 
             set((state) => ({ userTickets: [ticket, ...state.userTickets] }))
             return ticket
