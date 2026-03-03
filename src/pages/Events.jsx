@@ -355,14 +355,14 @@ export default function Events() {
 
     useEffect(() => {
         setEventsLoading(true)
-        // Timeout fallback: if Supabase takes >5s, show mock events
         const timeout = setTimeout(() => setEventsLoading(false), 5000)
         fetchEvents().finally(() => {
             clearTimeout(timeout)
             setEventsLoading(false)
         })
-        if (user) fetchUserTickets(user.id)
-    }, [user])
+        if (user?.id) fetchUserTickets(user.id)
+    }, [user?.id])  // stable string — prevents infinite loop when user object reference changes
+
 
     // Use real events from DB, fallback to mock if fetch fails
     const allEvents = events.length > 0 ? events : (eventsLoading ? [] : MOCK_EVENTS)

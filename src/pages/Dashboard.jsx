@@ -249,12 +249,13 @@ export default function Dashboard() {
     const [showNotifs, setShowNotifs] = useState(false)
 
     useEffect(() => {
-        if (user) {
+        if (user?.id) {
             fetchUserTickets(user.id)
-            fetchNotifications(user.id)  // load initial data; Navbar already has the realtime sub
+            fetchNotifications(user.id)
             logActivity('DASHBOARD_VISIT')
         }
-    }, [user])
+    }, [user?.id])  // user.id is a stable string — avoids infinite re-fetch from object reference changes
+
 
     const handleSignOut = async () => {
         await signOut()

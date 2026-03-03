@@ -31,12 +31,13 @@ export default function Navbar() {
     }, [])
 
     useEffect(() => {
-        if (user) {
+        if (user?.id) {
             fetchNotifications(user.id)
             const unsub = subscribe(user.id)
             return unsub
         }
-    }, [user])
+    }, [user?.id])  // stable — prevents duplicate Realtime channels on every auth event
+
 
     useEffect(() => {
         const handler = (e) => {
