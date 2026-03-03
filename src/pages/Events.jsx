@@ -344,7 +344,7 @@ function EventCard({ event, onBook, onCancel, userTickets, bookingId }) {
 export default function Events() {
     const { events, fetchEvents } = useEventsStore()
     const { user, logActivity } = useAuthStore()
-    const { userTickets, fetchUserTickets, bookTicket, cancelTicket, loading } = useTicketStore()
+    const { userTickets, fetchUserTickets, bookTicket, cancelTicket, booking } = useTicketStore()
     const navigate = useNavigate()
     const [category, setCategory] = useState('All')
     const [search, setSearch] = useState('')

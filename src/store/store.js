@@ -148,7 +148,8 @@ export const useAuthStore = create((set, get) => ({
 export const useTicketStore = create((set, get) => ({
     tickets: [],
     userTickets: [],
-    loading: false,
+    loading: false,      // fetching tickets
+    booking: false,      // actively booking a ticket
 
     fetchUserTickets: async (userId) => {
         set({ loading: true })
@@ -167,7 +168,7 @@ export const useTicketStore = create((set, get) => ({
     },
 
     bookTicket: async (eventId, userId) => {
-        set({ loading: true })
+        set({ booking: true })
         try {
             const { data: event } = await supabase.from('events').select('capacity, tickets_booked, title, event_date, venue').eq('id', eventId).single()
             if (!event) throw new Error('Event not found')
@@ -187,19 +188,21 @@ export const useTicketStore = create((set, get) => ({
             // Increment count (fire and forget)
             supabase.rpc('increment_tickets', { event_id: eventId }).then(() => { })
 
-            // Send in-app booking confirmation notification
-            supabase.from('notifications').insert({
-                user_id: userId,
-                title: `🎫 Ticket Confirmed — ${event.title}`,
-                message: `Your ticket code is ${ticketCode}. Event on ${new Date(event.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })} at ${event.venue}.`,
-                read: false,
-                created_at: new Date().toISOString(),
-            }).then(() => { })
+            // Send in-app notification (fire and forget — NEVER blocks ticket save)
+            try {
+                await supabase.from('notifications').insert({
+                    user_id: userId,
+                    title: `🎫 Ticket Confirmed — ${event.title}`,
+                    message: `Your ticket code is ${ticketCode}. Event on ${new Date(event.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })} at ${event.venue}.`,
+                    read: false,
+                    created_at: new Date().toISOString(),
+                })
+            } catch (_) { /* notification failure must never block the ticket */ }
 
             set((state) => ({ userTickets: [ticket, ...state.userTickets] }))
             return ticket
         } finally {
-            set({ loading: false })
+            set({ booking: false })
         }
     },
 
