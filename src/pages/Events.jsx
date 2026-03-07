@@ -400,20 +400,22 @@ export default function Events() {
 
     const handleConfirmBooking = async () => {
         if (!selectedEvent || !user) return
-        setBookingId(selectedEvent.id)
-        const eventForSuccess = { ...selectedEvent }
-        setSelectedEvent(null)
+        const currentEvent = selectedEvent          // capture before any state change
+        setBookingId(currentEvent.id)              // show spinner on Confirm button in modal
         try {
-            const ticket = await bookTicket(selectedEvent.id, user.id)
+            const ticket = await bookTicket(currentEvent.id, user.id)
             await fetchUserTickets(user.id)
-            setSuccessData({ ticket, event: eventForSuccess })
-            logActivity('TICKET_BOOKED', { event_id: selectedEvent.id })
+            setSelectedEvent(null)                 // close modal AFTER success
+            setSuccessData({ ticket, event: currentEvent })
+            logActivity('TICKET_BOOKED', { event_id: currentEvent.id })
         } catch (err) {
             toast.error(err.message || 'Booking failed. Try again.')
+            // modal stays open so user can retry or close manually
         } finally {
             setBookingId(null)
         }
     }
+
 
     const handleCancel = async (ticketId, eventId) => {
         if (!window.confirm('Cancel your registration for this event?')) return
