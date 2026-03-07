@@ -191,77 +191,41 @@ export const useTicketStore = create((set, get) => ({
     bookTicket: async (eventId, userId) => {
         set({ booking: true })
         try {
-            // 1. Fetch fresh event data from DB
+            // 1. Check capacity
             const { data: ev, error: evErr } = await supabase
-                .from('events')
-                .select('capacity, tickets_booked, title, event_date, venue, duration, emoji, category')
-                .eq('id', eventId)
-                .single()
-
+                .from('events').select('capacity, tickets_booked, title, event_date, venue').eq('id', eventId).single()
             if (evErr) throw new Error('Could not load event: ' + evErr.message)
             if (!ev) throw new Error('Event not found')
-            if (ev.tickets_booked >= ev.capacity) throw new Error('This event is fully booked')
+            if (ev.tickets_booked >= ev.capacity) throw new Error('Event is fully booked')
 
-            // 2. Check for duplicate booking
-            const { data: dup, error: dupErr } = await supabase
-                .from('tickets')
-                .select('id')
-                .eq('event_id', eventId)
-                .eq('user_id', userId)
-                .maybeSingle()
-            if (dupErr) console.warn('Duplicate check error:', dupErr.message)
+            // 2. Check duplicate
+            const { data: dup } = await supabase
+                .from('tickets').select('id').eq('event_id', eventId).eq('user_id', userId).maybeSingle()
             if (dup) throw new Error('You already have a ticket for this event')
 
-            // 3. Insert ticket
+            // 3. Insert ticket (without events join to avoid any RLS join issues)
             const ticketCode = `SKR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`
             const { data: newTicket, error: insErr } = await supabase
                 .from('tickets')
-                .insert({
-                    event_id: eventId,
-                    user_id: userId,
-                    ticket_code: ticketCode,
-                    status: 'confirmed',
-                    created_at: new Date().toISOString(),
-                })
+                .insert({ event_id: eventId, user_id: userId, ticket_code: ticketCode, status: 'confirmed', created_at: new Date().toISOString() })
                 .select('*')
                 .single()
+            if (insErr) throw new Error('Booking failed: ' + insErr.message)
 
-            if (insErr) {
-                console.error('Insert error:', insErr)
-                throw new Error('Booking failed: ' + insErr.message)
-            }
-
-            // 4. Increment ticket count — try RPC first, fallback to direct update
-            try {
-                const { error: rpcErr } = await supabase.rpc('increment_tickets', { event_id: eventId })
-                if (rpcErr) {
-                    console.warn('RPC failed, using direct update:', rpcErr.message)
-                    await supabase
-                        .from('events')
-                        .update({ tickets_booked: (ev.tickets_booked || 0) + 1 })
-                        .eq('id', eventId)
-                }
-            } catch (incErr) {
-                console.warn('Increment failed (non-blocking):', incErr)
-                // Attempt direct update as last resort
-                try {
-                    await supabase
-                        .from('events')
-                        .update({ tickets_booked: (ev.tickets_booked || 0) + 1 })
-                        .eq('id', eventId)
-                } catch (_) { /* ignore */ }
-            }
-
-            // 5. Send notification (non-blocking)
-            supabase.from('notifications').insert({
-                user_id: userId,
-                title: `🎫 Ticket Confirmed — ${ev.title}`,
-                message: `Code: ${ticketCode}`,
-                read: false,
-                created_at: new Date().toISOString(),
-            }).catch((e) => console.warn('Notification failed:', e))
-
+            // 4. Build the ticket object with event data we already have
             const ticket = { ...newTicket, events: ev }
+
+            // 5. Fire-and-forget side effects (NEVER block the ticket)
+            setTimeout(() => {
+                supabase.rpc('increment_tickets', { event_id: eventId }).catch(() => { })
+                supabase.from('notifications').insert({
+                    user_id: userId,
+                    title: `🎫 Ticket Confirmed — ${ev.title}`,
+                    message: `Code: ${ticketCode}`,
+                    read: false, created_at: new Date().toISOString(),
+                }).catch(() => { })
+            }, 100)
+
             set((state) => ({ userTickets: [ticket, ...state.userTickets] }))
             return ticket
         } finally {

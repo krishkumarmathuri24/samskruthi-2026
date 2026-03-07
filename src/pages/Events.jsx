@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar, Clock, MapPin, Users, Ticket, Filter, Search, X, CheckCircle, AlertCircle, Loader, Wifi, WifiOff } from 'lucide-react'
+import { Calendar, Clock, MapPin, Users, Ticket, Filter, Search, X, CheckCircle, AlertCircle, Loader } from 'lucide-react'
 import { useEventsStore, useAuthStore, useTicketStore } from '../store/store'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
@@ -8,37 +8,21 @@ import toast from 'react-hot-toast'
 
 const CATEGORIES = ['All', 'Music', 'Dance', 'Tech', 'Art', 'Comedy', 'Fashion', 'Sports', 'Literature', 'Food', 'Photography', 'Theater', 'Quiz', 'Debate']
 
-// Mock events have tickets_booked: 0 — capacity bar is hidden for mock data
 const MOCK_EVENTS = [
-    { id: '1', title: 'Battle of Bands', category: 'Music', description: 'Live band competition with top college bands from across the country.', event_date: '2026-08-15T18:00:00', venue: 'Main Stage', capacity: 2000, tickets_booked: 0, duration: '3 hours', emoji: '🎸', _isMock: true },
-    { id: '2', title: 'Dance War', category: 'Dance', description: 'Solo, duo, and group dance competition across classical and contemporary styles.', event_date: '2026-08-15T14:00:00', venue: 'Dance Arena', capacity: 800, tickets_booked: 0, duration: '4 hours', emoji: '💃', _isMock: true },
-    { id: '3', title: 'Code Storm', category: 'Tech', description: '24-hour hackathon with exciting problem statements and industry mentors.', event_date: '2026-08-16T09:00:00', venue: 'Tech Hub', capacity: 400, tickets_booked: 0, duration: '24 hours', emoji: '💻', _isMock: true },
-    { id: '4', title: 'Rangoli Royale', category: 'Art', description: 'Traditional art competition showcasing intricate designs and creativity.', event_date: '2026-08-16T10:00:00', venue: 'Art Pavilion', capacity: 200, tickets_booked: 0, duration: '3 hours', emoji: '🎨', _isMock: true },
-    { id: '5', title: 'Stand-up Nite', category: 'Comedy', description: 'Comedy night featuring student comedians and special celebrity guest.', event_date: '2026-08-16T20:00:00', venue: 'Comedy Club', capacity: 600, tickets_booked: 0, duration: '2 hours', emoji: '🎤', _isMock: true },
-    { id: '6', title: 'Fashion Fiesta', category: 'Fashion', description: 'Runway fashion show celebrating cultural couture and modern design.', event_date: '2026-08-17T16:00:00', venue: 'Fashion Hall', capacity: 1000, tickets_booked: 0, duration: '2 hours', emoji: '👗', _isMock: true },
-    { id: '7', title: 'Slam Poetry', category: 'Literature', description: 'Express yourself through powerful spoken word performances.', event_date: '2026-08-15T16:00:00', venue: 'Literary Lounge', capacity: 300, tickets_booked: 0, duration: '2 hours', emoji: '📖', _isMock: true },
-    { id: '8', title: 'Cricket Clash', category: 'Sports', description: 'Inter-college T20 cricket tournament with massive prize money.', event_date: '2026-08-15T08:00:00', venue: 'Sports Ground', capacity: 5000, tickets_booked: 0, duration: '8 hours', emoji: '🏑', _isMock: true },
+    { id: '1', title: 'Battle of Bands', category: 'Music', description: 'Live band competition with top college bands from across the country.', event_date: '2026-08-15T18:00:00', venue: 'Main Stage', capacity: 2000, tickets_booked: 1230, duration: '3 hours', emoji: '🎸' },
+    { id: '2', title: 'Dance War', category: 'Dance', description: 'Solo, duo, and group dance competition across classical and contemporary styles.', event_date: '2026-08-15T14:00:00', venue: 'Dance Arena', capacity: 800, tickets_booked: 540, duration: '4 hours', emoji: '💃' },
+    { id: '3', title: 'Code Storm', category: 'Tech', description: '24-hour hackathon with exciting problem statements and industry mentors.', event_date: '2026-08-16T09:00:00', venue: 'Tech Hub', capacity: 400, tickets_booked: 320, duration: '24 hours', emoji: '💻' },
+    { id: '4', title: 'Rangoli Royale', category: 'Art', description: 'Traditional art competition showcasing intricate designs and creativity.', event_date: '2026-08-16T10:00:00', venue: 'Art Pavilion', capacity: 200, tickets_booked: 87, duration: '3 hours', emoji: '🎨' },
+    { id: '5', title: 'Stand-up Nite', category: 'Comedy', description: 'Comedy night featuring student comedians and special celebrity guest.', event_date: '2026-08-16T20:00:00', venue: 'Comedy Club', capacity: 600, tickets_booked: 590, duration: '2 hours', emoji: '🎤' },
+    { id: '6', title: 'Fashion Fiesta', category: 'Fashion', description: 'Runway fashion show celebrating cultural couture and modern design.', event_date: '2026-08-17T16:00:00', venue: 'Fashion Hall', capacity: 1000, tickets_booked: 720, duration: '2 hours', emoji: '👗' },
+    { id: '7', title: 'Slam Poetry', category: 'Literature', description: 'Express yourself through powerful spoken word performances.', event_date: '2026-08-15T16:00:00', venue: 'Literary Lounge', capacity: 300, tickets_booked: 120, duration: '2 hours', emoji: '📖' },
+    { id: '8', title: 'Cricket Clash', category: 'Sports', description: 'Inter-college T20 cricket tournament with massive prize money.', event_date: '2026-08-15T08:00:00', venue: 'Sports Ground', capacity: 5000, tickets_booked: 2300, duration: '8 hours', emoji: '🏑' },
 ]
 
 // ─── Booking Modal ────────────────────────────────────────────────────────────
 function BookingModal({ event, onConfirm, onClose, booking }) {
-    const [liveEvent, setLiveEvent] = useState(event)
-
-    // Always fetch fresh capacity from DB when modal opens
-    useEffect(() => {
-        if (event._isMock) return
-        supabase
-            .from('events')
-            .select('capacity, tickets_booked')
-            .eq('id', event.id)
-            .single()
-            .then(({ data }) => {
-                if (data) setLiveEvent(prev => ({ ...prev, tickets_booked: data.tickets_booked, capacity: data.capacity }))
-            })
-    }, [event.id])
-
-    const pct = Math.round((liveEvent.tickets_booked / liveEvent.capacity) * 100)
-    const spotsLeft = liveEvent.capacity - liveEvent.tickets_booked
+    const pct = Math.round((event.tickets_booked / event.capacity) * 100)
+    const spotsLeft = event.capacity - event.tickets_booked
 
     return (
         <AnimatePresence>
@@ -70,15 +54,18 @@ function BookingModal({ event, onConfirm, onClose, booking }) {
                         boxShadow: '0 40px 80px rgba(0,0,0,0.6)',
                     }}
                 >
+                    {/* Top gradient stripe */}
                     <div style={{ height: 6, background: 'linear-gradient(90deg, #00bcd4, #00e5ff, #7c4dff)' }} />
+
                     <div style={{ padding: 32 }}>
+                        {/* Header */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                                <div style={{ fontSize: '3rem' }}>{liveEvent.emoji}</div>
+                                <div style={{ fontSize: '3rem' }}>{event.emoji}</div>
                                 <div>
-                                    <span className="tag-chip" style={{ marginBottom: 6 }}>{liveEvent.category}</span>
+                                    <span className="tag-chip" style={{ marginBottom: 6 }}>{event.category}</span>
                                     <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-secondary)' }}>
-                                        {liveEvent.title}
+                                        {event.title}
                                     </h2>
                                 </div>
                             </div>
@@ -91,10 +78,10 @@ function BookingModal({ event, onConfirm, onClose, booking }) {
                         <div style={{ background: 'rgba(0,229,255,0.04)', border: '1px solid var(--glass-border)', borderRadius: 16, padding: 20, marginBottom: 24 }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                                 {[
-                                    { label: 'Date', val: new Date(liveEvent.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) },
-                                    { label: 'Time', val: new Date(liveEvent.event_date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) },
-                                    { label: 'Venue', val: liveEvent.venue },
-                                    { label: 'Duration', val: liveEvent.duration },
+                                    { label: 'Date', val: new Date(event.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) },
+                                    { label: 'Time', val: new Date(event.event_date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) },
+                                    { label: 'Venue', val: event.venue },
+                                    { label: 'Duration', val: event.duration },
                                 ].map(({ label, val }) => (
                                     <div key={label}>
                                         <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>{label}</div>
@@ -104,37 +91,35 @@ function BookingModal({ event, onConfirm, onClose, booking }) {
                             </div>
                         </div>
 
-                        {/* Live Availability — only for real DB events */}
-                        {!liveEvent._isMock && (
-                            <div style={{ marginBottom: 24 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                        <Wifi size={13} color="#00e5ff" />
-                                        <Users size={13} style={{ display: 'inline', marginRight: 4 }} />
-                                        {liveEvent.tickets_booked} / {liveEvent.capacity} registered
-                                    </span>
-                                    <span style={{
-                                        fontSize: '0.85rem', fontWeight: 700,
-                                        color: spotsLeft < 50 ? '#ff5252' : spotsLeft < 200 ? '#ffab40' : '#00e676'
-                                    }}>
-                                        {spotsLeft < 1 ? 'FULL' : `${spotsLeft} spots left`}
-                                    </span>
-                                </div>
-                                <div style={{ height: 8, background: 'rgba(0,229,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
-                                    <motion.div
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${Math.min(pct, 100)}%` }}
-                                        transition={{ duration: 0.8, ease: 'easeOut' }}
-                                        style={{
-                                            height: '100%',
-                                            background: pct > 80 ? 'linear-gradient(90deg, #ff5252, #ff6e6e)' : 'linear-gradient(90deg, #00bcd4, #00e5ff)',
-                                            borderRadius: 4,
-                                        }}
-                                    />
-                                </div>
+                        {/* Availability */}
+                        <div style={{ marginBottom: 24 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                    <Users size={13} style={{ display: 'inline', marginRight: 4 }} />
+                                    {event.tickets_booked} / {event.capacity} registered
+                                </span>
+                                <span style={{
+                                    fontSize: '0.85rem', fontWeight: 700,
+                                    color: spotsLeft < 50 ? '#ff5252' : spotsLeft < 200 ? '#ffab40' : '#00e676'
+                                }}>
+                                    {spotsLeft < 1 ? 'FULL' : `${spotsLeft} spots left`}
+                                </span>
                             </div>
-                        )}
+                            <div style={{ height: 8, background: 'rgba(0,229,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${pct}%` }}
+                                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                                    style={{
+                                        height: '100%',
+                                        background: pct > 80 ? 'linear-gradient(90deg, #ff5252, #ff6e6e)' : 'linear-gradient(90deg, #00bcd4, #00e5ff)',
+                                        borderRadius: 4,
+                                    }}
+                                />
+                            </div>
+                        </div>
 
+                        {/* Confirm Button */}
                         <button
                             onClick={onConfirm}
                             disabled={booking}
@@ -142,7 +127,7 @@ function BookingModal({ event, onConfirm, onClose, booking }) {
                             style={{ width: '100%', justifyContent: 'center', gap: 10, padding: '14px 24px', fontSize: '1rem', fontWeight: 700 }}
                         >
                             {booking ? (
-                                <><Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> Booking...</>
+                                <><Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> Booking…</>
                             ) : (
                                 <><Ticket size={18} /> Confirm Free Booking</>
                             )}
@@ -188,7 +173,11 @@ function SuccessModal({ ticket, event, onClose }) {
                 >
                     <div style={{ height: 6, background: 'linear-gradient(90deg, #00e676, #69f0ae)' }} />
                     <div style={{ padding: '40px 32px' }}>
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring', damping: 10 }}>
+                        <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ delay: 0.2, type: 'spring', damping: 10 }}
+                        >
                             <CheckCircle size={72} color="#00e676" style={{ marginBottom: 16 }} />
                         </motion.div>
                         <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#00e676', fontFamily: 'var(--font-secondary)', marginBottom: 8 }}>
@@ -226,7 +215,6 @@ function EventCard({ event, onBook, onCancel, userTickets, bookingId }) {
     const isFull = event.tickets_booked >= event.capacity
     const isBooking = bookingId === event.id
     const spotsLeft = event.capacity - event.tickets_booked
-    const isRealData = !event._isMock
 
     return (
         <motion.div
@@ -258,7 +246,7 @@ function EventCard({ event, onBook, onCancel, userTickets, bookingId }) {
                 <div style={{ fontSize: '3rem' }}>{event.emoji}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                     <span className="tag-chip">{event.category}</span>
-                    {isRealData && spotsLeft <= 50 && spotsLeft > 0 && (
+                    {spotsLeft <= 50 && spotsLeft > 0 && (
                         <span style={{ fontSize: '0.7rem', color: '#ff9800', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                             <AlertCircle size={11} /> Only {spotsLeft} left!
                         </span>
@@ -285,39 +273,31 @@ function EventCard({ event, onBook, onCancel, userTickets, bookingId }) {
                 ))}
             </div>
 
-            {/* Real-time capacity bar — ONLY shown for real DB events */}
-            {isRealData ? (
-                <div style={{ marginBottom: 20 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                            <Wifi size={12} color="#00e5ff" />
-                            <Users size={13} />
-                            <motion.span key={event.tickets_booked} initial={{ scale: 1.3 }} animate={{ scale: 1 }}>
-                                {event.tickets_booked}
-                            </motion.span>
-                            &nbsp;/ {event.capacity}
-                        </div>
-                        <span style={{ fontSize: '0.8rem', color: pct > 80 ? '#ff5252' : 'var(--teal-glow)', fontWeight: 600 }}>
-                            {isFull ? 'FULL' : `${pct}%`}
-                        </span>
+            {/* Realtime capacity bar */}
+            <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                        <Users size={13} />
+                        <motion.span key={event.tickets_booked} initial={{ scale: 1.3 }} animate={{ scale: 1 }}>
+                            {event.tickets_booked}
+                        </motion.span> / {event.capacity}
                     </div>
-                    <div style={{ height: 6, background: 'rgba(0,229,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
-                        <motion.div
-                            animate={{ width: `${Math.min(pct, 100)}%` }}
-                            transition={{ duration: 0.6 }}
-                            style={{
-                                height: '100%',
-                                background: pct > 80 ? 'linear-gradient(90deg, #ff5252, #ff6e6e)' : 'linear-gradient(90deg, #00bcd4, #00e5ff)',
-                                borderRadius: 3,
-                            }}
-                        />
-                    </div>
+                    <span style={{ fontSize: '0.8rem', color: pct > 80 ? '#ff5252' : 'var(--teal-glow)', fontWeight: 600 }}>
+                        {isFull ? 'FULL' : `${pct}%`}
+                    </span>
                 </div>
-            ) : (
-                <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>
-                    <WifiOff size={12} /> Live seat data unavailable (offline mode)
+                <div style={{ height: 6, background: 'rgba(0,229,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
+                    <motion.div
+                        animate={{ width: `${Math.min(pct, 100)}%` }}
+                        transition={{ duration: 0.6 }}
+                        style={{
+                            height: '100%',
+                            background: pct > 80 ? 'linear-gradient(90deg, #ff5252, #ff6e6e)' : 'linear-gradient(90deg, #00bcd4, #00e5ff)',
+                            borderRadius: 3,
+                        }}
+                    />
                 </div>
-            )}
+            </div>
 
             {/* Book / Cancel Button */}
             {myTicket ? (
@@ -351,9 +331,8 @@ function EventCard({ event, onBook, onCancel, userTickets, bookingId }) {
                         cursor: isFull ? 'default' : 'pointer',
                     }}
                 >
-                    {isBooking
-                        ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> Booking...</>
-                        : isFull ? 'Fully Booked' : <><Ticket size={16} /> Book Free Ticket</>
+                    {isBooking ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> Booking…</> :
+                        isFull ? 'Fully Booked' : <><Ticket size={16} /> Book Free Ticket</>
                     }
                 </button>
             )}
@@ -365,7 +344,7 @@ function EventCard({ event, onBook, onCancel, userTickets, bookingId }) {
 export default function Events() {
     const { events, fetchEvents } = useEventsStore()
     const { user, logActivity } = useAuthStore()
-    const { userTickets, fetchUserTickets, bookTicket, cancelTicket } = useTicketStore()
+    const { userTickets, fetchUserTickets, bookTicket, cancelTicket, booking } = useTicketStore()
     const navigate = useNavigate()
     const [category, setCategory] = useState('All')
     const [search, setSearch] = useState('')
@@ -373,7 +352,6 @@ export default function Events() {
     const [successData, setSuccessData] = useState(null)
     const [bookingId, setBookingId] = useState(null)
     const [eventsLoading, setEventsLoading] = useState(true)
-    const channelRef = useRef(null)
 
     useEffect(() => {
         setEventsLoading(true)
@@ -383,39 +361,25 @@ export default function Events() {
             setEventsLoading(false)
         })
         if (user?.id) fetchUserTickets(user.id)
-    }, [user?.id])
+    }, [user?.id])  // stable string — prevents infinite loop when user object reference changes
 
-    const usingRealData = events.length > 0
-    const allEvents = usingRealData ? events : (eventsLoading ? [] : MOCK_EVENTS)
 
-    // ─── Robust Supabase Realtime — live ticket count updates ─────────────────
+    // Use real events from DB, fallback to mock if fetch fails
+    const allEvents = events.length > 0 ? events : (eventsLoading ? [] : MOCK_EVENTS)
+
+    // ─── Supabase Realtime — live ticket count updates ────────────────────────
     useEffect(() => {
-        if (channelRef.current) supabase.removeChannel(channelRef.current)
-
-        channelRef.current = supabase
-            .channel('events-capacity-live')
-            .on('postgres_changes', {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'events',
-            }, (payload) => {
+        const channel = supabase
+            .channel('events-realtime')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events' }, (payload) => {
+                // Update just that event's count in store
                 useEventsStore.setState(state => ({
-                    events: state.events.map(e =>
-                        e.id === payload.new.id
-                            ? { ...e, tickets_booked: payload.new.tickets_booked, capacity: payload.new.capacity }
-                            : e
-                    )
+                    events: state.events.map(e => e.id === payload.new.id ? { ...e, tickets_booked: payload.new.tickets_booked } : e)
                 }))
             })
-            .subscribe((status) => {
-                if (status === 'SUBSCRIBED') {
-                    console.log('Real-time seat counts active')
-                }
-            })
+            .subscribe()
 
-        return () => {
-            if (channelRef.current) supabase.removeChannel(channelRef.current)
-        }
+        return () => { supabase.removeChannel(channel) }
     }, [])
 
     const filtered = allEvents.filter(e => {
@@ -436,50 +400,29 @@ export default function Events() {
 
     const handleConfirmBooking = async () => {
         if (!selectedEvent || !user) return
-        const currentEvent = selectedEvent
-        setBookingId(currentEvent.id)
+        const currentEvent = selectedEvent          // capture before any state change
+        setBookingId(currentEvent.id)              // show spinner on Confirm button in modal
         try {
             const ticket = await bookTicket(currentEvent.id, user.id)
-
-            // Optimistic local update: increment count instantly
-            if (usingRealData) {
-                useEventsStore.setState(state => ({
-                    events: state.events.map(e =>
-                        e.id === currentEvent.id
-                            ? { ...e, tickets_booked: (e.tickets_booked || 0) + 1 }
-                            : e
-                    )
-                }))
-            }
-
             await fetchUserTickets(user.id)
-            setSelectedEvent(null)
+            setSelectedEvent(null)                 // close modal AFTER success
             setSuccessData({ ticket, event: currentEvent })
             logActivity('TICKET_BOOKED', { event_id: currentEvent.id })
         } catch (err) {
             toast.error(err.message || 'Booking failed. Try again.')
+            // modal stays open so user can retry or close manually
         } finally {
             setBookingId(null)
         }
     }
 
+
     const handleCancel = async (ticketId, eventId) => {
         if (!window.confirm('Cancel your registration for this event?')) return
         try {
             await cancelTicket(ticketId, eventId)
-
-            // Optimistic local update: decrement count instantly
-            if (usingRealData) {
-                useEventsStore.setState(state => ({
-                    events: state.events.map(e =>
-                        e.id === eventId
-                            ? { ...e, tickets_booked: Math.max(0, (e.tickets_booked || 1) - 1) }
-                            : e
-                    )
-                }))
-            }
-
             await fetchUserTickets(user.id)
+            await fetchEvents()
             toast.success('Registration cancelled')
         } catch (err) {
             toast.error(err.message || 'Could not cancel. Try again.')
@@ -488,6 +431,7 @@ export default function Events() {
 
     return (
         <div style={{ paddingTop: 'var(--nav-height)' }}>
+            {/* Booking Modal */}
             {selectedEvent && (
                 <BookingModal
                     event={selectedEvent}
@@ -496,6 +440,8 @@ export default function Events() {
                     booking={bookingId === selectedEvent?.id}
                 />
             )}
+
+            {/* Success Modal */}
             {successData && (
                 <SuccessModal
                     ticket={successData.ticket}
@@ -509,12 +455,7 @@ export default function Events() {
                 <div className="container" style={{ textAlign: 'center' }}>
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                         <span className="badge" style={{ marginBottom: 20 }}>
-                            <span className="notif-dot" />&nbsp;
-                            {allEvents.length} Events &middot;{' '}
-                            {usingRealData
-                                ? <span style={{ color: '#00e676' }}>Live Updates Active</span>
-                                : <span style={{ color: '#ffab40' }}>Offline Preview</span>
-                            }
+                            <span className="notif-dot" />&nbsp; {allEvents.length} Events · Live Updates
                         </span>
                         <h1 className="section-title" style={{ marginBottom: 16 }}>Upcoming Events</h1>
                         <p className="section-subtitle" style={{ marginBottom: 0 }}>
@@ -563,7 +504,7 @@ export default function Events() {
                     {eventsLoading ? (
                         <div style={{ textAlign: 'center', padding: '80px 0' }}>
                             <div className="loader" style={{ margin: '0 auto 16px' }} />
-                            <p style={{ color: 'var(--text-dim)' }}>Loading events...</p>
+                            <p style={{ color: 'var(--text-dim)' }}>Loading events…</p>
                         </div>
                     ) : filtered.length === 0 ? (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
