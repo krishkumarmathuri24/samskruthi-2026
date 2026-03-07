@@ -124,8 +124,24 @@ export const useAuthStore = create((set, get) => ({
     },
 
     signOut: async () => {
-        await supabase.auth.signOut()
+        // Clear local caches FIRST (before network call)
+        try {
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('sk_profile_') || key.startsWith('sb-')) {
+                    localStorage.removeItem(key)
+                }
+            })
+        } catch (_) {}
+
+        // Clear auth state immediately so UI updates
         set({ user: null, profile: null, isAdmin: false })
+
+        // Sign out from Supabase (best-effort)
+        try {
+            await supabase.auth.signOut()
+        } catch (err) {
+            console.warn('Sign out warning:', err)
+        }
     },
 
     logActivity: async (action, metadata = {}) => {

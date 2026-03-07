@@ -52,10 +52,11 @@ export default function Navbar() {
         setMenuOpen(false)
     }, [location.pathname])
 
-    const handleSignOut = async () => {
-        await signOut()
-        toast.success('Signed out successfully')
-        navigate('/')
+    const handleSignOut = () => {
+        toast.success('Signing out...')
+        signOut().catch(console.error).finally(() => {
+            window.location.href = '/'
+        })
     }
 
     const isActive = (path) =>
@@ -321,10 +322,23 @@ export default function Navbar() {
                             {link.label}
                         </Link>
                     ))}
-                    {!user && (
-                        <Link to="/login" className="btn btn-primary" style={{ marginTop: 16, justifyContent: 'center' }}>
+                    {!user ? (
+                        <Link to="/login" className="btn btn-primary" style={{ marginTop: 16, justifyContent: 'center' }} onClick={() => setMenuOpen(false)}>
                             Sign In
                         </Link>
+                    ) : (
+                        <>
+                            <div style={{ margin: '16px 0', borderTop: '1px solid var(--glass-border)' }} />
+                            <Link to="/profile" className="btn btn-ghost" style={{ justifyContent: 'center', marginBottom: 8 }} onClick={() => setMenuOpen(false)}>
+                                My Profile
+                            </Link>
+                            <Link to="/dashboard" className="btn btn-ghost" style={{ justifyContent: 'center', marginBottom: 8 }} onClick={() => setMenuOpen(false)}>
+                                Dashboard
+                            </Link>
+                            <button onClick={handleSignOut} className="btn btn-ghost" style={{ justifyContent: 'center', color: '#ff5252', borderColor: 'rgba(255,82,82,0.3)' }}>
+                                <LogOut size={16} style={{ marginRight: 8 }} /> Sign Out
+                            </button>
+                        </>
                     )}
                 </div>
             )}

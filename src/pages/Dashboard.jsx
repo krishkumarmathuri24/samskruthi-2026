@@ -266,10 +266,11 @@ export default function Dashboard() {
         }
     }, [user?.id])
 
-    const handleSignOut = async () => {
-        await signOut()
-        toast.success('Signed out successfully')
-        navigate('/')
+    const handleSignOut = () => {
+        toast.success('Signing out...')
+        signOut().catch(console.error).finally(() => {
+            window.location.href = '/'
+        })
     }
 
     const handleCancel = async (ticketId, eventId) => {

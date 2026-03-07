@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 import {
     Camera, User, BookOpen, GraduationCap, Phone, Mail,
-    Save, Edit3, X, Check, Hash, Linkedin, Instagram, Globe,
+    Save, Edit3, X, Check, Hash, Linkedin, Instagram, Globe, LogOut,
 } from 'lucide-react'
 
 const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', 'Alumni', 'Faculty']
@@ -56,7 +56,14 @@ function Field({ icon, label, name, placeholder, type = 'text', as: As = 'input'
 }
 
 export default function Profile() {
-    const { user, profile, setProfile } = useAuthStore()
+    const { user, profile, setProfile, signOut } = useAuthStore()
+
+    const handleSignOut = () => {
+        toast.success('Signing out...')
+        signOut().catch(console.error).finally(() => {
+            window.location.href = '/'
+        })
+    }
     const navigate = useNavigate()
     const fileRef = useRef(null)
     const [editing, setEditing] = useState(false)
@@ -221,9 +228,14 @@ export default function Profile() {
                                     </button>
                                 </>
                             ) : (
-                                <button onClick={() => setEditing(true)} className="btn btn-primary" style={{ padding: '10px 20px', gap: 8 }}>
-                                    <Edit3 size={16} /> Edit Profile
-                                </button>
+                                <>
+                                    <button onClick={() => setEditing(true)} className="btn btn-primary" style={{ padding: '10px 20px', gap: 8 }}>
+                                        <Edit3 size={16} /> Edit Profile
+                                    </button>
+                                    <button onClick={handleSignOut} className="btn btn-ghost" style={{ padding: '10px 20px', gap: 8, color: '#ff5252', borderColor: 'rgba(255,82,82,0.3)' }}>
+                                        <LogOut size={16} /> Sign Out
+                                    </button>
+                                </>
                             )}
                         </div>
                     </div>
