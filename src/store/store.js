@@ -221,15 +221,23 @@ export const useTicketStore = create((set, get) => ({
     cancelTicket: async (ticketId, eventId) => {
         const { error } = await supabase.from('tickets').delete().eq('id', ticketId)
         if (error) throw error
-        // Decrement count
-        await supabase.rpc('decrement_tickets', { event_id: eventId }).catch(() => {
-            // Fallback: manual decrement
-            supabase.from('events').select('tickets_booked').eq('id', eventId).single().then(({ data }) => {
-                if (data) supabase.from('events').update({ tickets_booked: Math.max(0, data.tickets_booked - 1) }).eq('id', eventId).then(() => { })
-            })
-        })
+
+        // Decrement seat count — use try-catch since rpc() doesn't support .catch()
+        try {
+            await supabase.rpc('decrement_tickets', { event_id: eventId })
+        } catch (_) {
+            // Fallback: manual decrement if RPC fails
+            try {
+                const { data } = await supabase.from('events').select('tickets_booked').eq('id', eventId).single()
+                if (data) {
+                    await supabase.from('events').update({ tickets_booked: Math.max(0, data.tickets_booked - 1) }).eq('id', eventId)
+                }
+            } catch (_2) { /* ignore */ }
+        }
+
         set((state) => ({ userTickets: state.userTickets.filter(t => t.id !== ticketId) }))
     },
+
 }))
 
 // ─── Events Store ─────────────────────────────────────────────────────────────
