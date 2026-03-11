@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Github, Instagram, Twitter, Youtube, Mail, Phone, MapPin } from 'lucide-react'
+import { Instagram, Twitter, Youtube, Mail, Phone, MapPin } from 'lucide-react'
 
 const LINKS = {
     Pages: [
@@ -17,10 +17,9 @@ const LINKS = {
 }
 
 const SOCIALS = [
-    { icon: <Instagram size={18} />, href: '#', label: 'Instagram' },
-    { icon: <Twitter size={18} />, href: '#', label: 'Twitter' },
-    { icon: <Youtube size={18} />, href: '#', label: 'YouTube' },
-    { icon: <Github size={18} />, href: '#', label: 'GitHub' },
+    { icon: <Instagram size={18} />, href: 'https://www.instagram.com/samskruthi.fest?igsh=MWVsOXpqdHdpZjh1NA==', label: 'Instagram', target: '_blank' },
+    { icon: <Twitter size={18} />, href: 'https://facebook.com/EastPointGroupofInstitutions', label: 'Twitter', target: '_blank' },
+    { icon: <Youtube size={18} />, href: 'https://www.youtube.com/@eastpointinstitutions', label: 'YouTube', target: '_blank' },
 ]
 
 export default function Footer() {
@@ -58,7 +57,7 @@ export default function Footer() {
                         </p>
                         <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
                             {SOCIALS.map((s) => (
-                                <a key={s.label} href={s.href} aria-label={s.label} style={{
+                                <a key={s.label} href={s.href} aria-label={s.label} target={s.target} rel="noopener noreferrer" style={{
                                     width: 38, height: 38,
                                     background: 'var(--glass-bg)',
                                     border: '1px solid var(--glass-border)',
