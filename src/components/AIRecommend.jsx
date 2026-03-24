@@ -29,8 +29,11 @@ export default function AIRecommend() {
             // Ensure we definitely have the events
             let currentEvents = events
             if (!currentEvents || currentEvents.length === 0) {
-                // Fetch directly from database to avoid any store/caching issues
-                const { data, error } = await supabase.from('events').select('*')
+                // Fetch directly from database with a timeout
+                const fetchPromise = supabase.from('events').select('*')
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase timeout')), 8000))
+                const { data, error } = await Promise.race([fetchPromise, timeoutPromise])
+                
                 if (!error && data && data.length > 0) {
                     currentEvents = data
                 }
@@ -42,7 +45,7 @@ export default function AIRecommend() {
             const availableEvents = currentEvents && currentEvents.length > 0 ? currentEvents : []
 
             if (availableEvents.length === 0) {
-                setRecommendation('No events found on the site yet. Check back soon!')
+                setRecommendation('No events found right now. Check back soon!')
                 return
             }
 
@@ -77,10 +80,12 @@ export default function AIRecommend() {
                 'REASON: <one exciting sentence about why this event is unmissable>',
             ].join('\n')
 
-            const response = await ai.models.generateContent({
+            const aiPromise = ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
             })
+            const aiTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Gemini timeout')), 15000))
+            const response = await Promise.race([aiPromise, aiTimeout])
 
             const text = response.text || ''
             const eventMatch = text.match(/EVENT:\s*(.+)/i)
