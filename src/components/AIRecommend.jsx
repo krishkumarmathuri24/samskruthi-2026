@@ -22,15 +22,18 @@ export default function AIRecommend() {
 
         setLoading(true)
         
-        // Fetch events if they are not loaded yet
+        // Ensure we definitely have the events
         let currentEvents = events
-        if (currentEvents.length === 0) {
+        if (!currentEvents || currentEvents.length === 0) {
             try {
-                await fetchEvents()
-                // Access fresh state directly to avoid closure issues
-                currentEvents = useEventsStore.getState().events
+                // Fetch directly from database to avoid any store/caching issues
+                const { supabase } = await import('../lib/supabase')
+                const { data } = await supabase.from('events').select('*')
+                if (data && data.length > 0) {
+                    currentEvents = data
+                }
             } catch (err) {
-                console.error("Failed to load events", err)
+                console.error("Failed to load events from DB", err)
             }
         }
 
