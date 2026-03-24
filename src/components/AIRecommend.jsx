@@ -20,14 +20,17 @@ export default function AIRecommend() {
             return
         }
 
-        // Get available events (not yet booked by user)
+        // Get available events — if all booked, recommend from all events anyway
         const bookedTitles = userTickets.map(t => t.events?.title).filter(Boolean)
-        const availableEvents = events.filter(e => !bookedTitles.includes(e.title))
+        const availableEvents = events.length > 0 ? events : []
 
         if (availableEvents.length === 0) {
-            setRecommendation("You've booked every event! You're an absolute Samskruthi legend. 🎉")
+            setRecommendation('No events found on the site yet. Check back soon!')
             return
         }
+
+        const unbooked = availableEvents.filter(e => !bookedTitles.includes(e.title))
+        const poolToRecommendFrom = unbooked.length > 0 ? unbooked : availableEvents
 
         setLoading(true)
         setRecommendation('')
@@ -37,12 +40,12 @@ export default function AIRecommend() {
             const ai = new GoogleGenAI({ apiKey })
 
             // Build a numbered EXACT title list — AI must choose only from this
-            const numberedList = availableEvents
+            const numberedList = poolToRecommendFrom
                 .map((e, i) => (i + 1) + '. ' + e.title)
                 .join('\n')
 
             const bookedContext = bookedTitles.length > 0
-                ? 'The user has already booked: ' + bookedTitles.join(', ') + '.'
+                ? 'The user has already booked: ' + bookedTitles.join(', ') + '. Recommend which event they should attend first or enjoy most.'
                 : 'The user has not booked any events yet.'
 
             const prompt = [
@@ -72,21 +75,20 @@ export default function AIRecommend() {
             const reasonMatch = text.match(/REASON:\s*(.+)/i)
             const suggestedTitle = eventMatch ? eventMatch[1].trim() : ''
 
-            // Validate: check if the AI's suggestion actually exists in our events list
-            const validEvent = availableEvents.find(
+            // Validate: check if the AI's suggestion actually exists in our pool
+            const validEvent = poolToRecommendFrom.find(
                 e => e.title.toLowerCase() === suggestedTitle.toLowerCase()
-            ) || availableEvents.find(
+            ) || poolToRecommendFrom.find(
                 e => e.title.toLowerCase().includes(suggestedTitle.toLowerCase())
                     || suggestedTitle.toLowerCase().includes(e.title.toLowerCase())
             )
 
             if (validEvent) {
-                // AI gave a real event — use it
                 setEventName(validEvent.title)
                 setRecommendation(reasonMatch ? reasonMatch[1].trim() : 'This is a must-attend event at Samskruthi 2026!')
             } else {
-                // AI hallucinated — fall back to first available real event
-                const fallback = availableEvents[0]
+                // AI hallucinated — fall back to first event in pool
+                const fallback = poolToRecommendFrom[0]
                 setEventName(fallback.title)
                 setRecommendation('This event is a top pick at Samskruthi 2026 — grab your free ticket before it fills up!')
             }
