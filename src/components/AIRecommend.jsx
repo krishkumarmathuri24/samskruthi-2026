@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom'
 import { GoogleGenAI } from '@google/genai'
 
 export default function AIRecommend() {
-    const { events } = useEventsStore()
+    const { events, fetchEvents } = useEventsStore()
     const { userTickets } = useTicketStore()
     const [recommendation, setRecommendation] = useState('')
     const [eventName, setEventName] = useState('')
@@ -20,19 +20,33 @@ export default function AIRecommend() {
             return
         }
 
+        setLoading(true)
+        
+        // Fetch events if they are not loaded yet
+        let currentEvents = events
+        if (currentEvents.length === 0) {
+            try {
+                await fetchEvents()
+                // Access fresh state directly to avoid closure issues
+                currentEvents = useEventsStore.getState().events
+            } catch (err) {
+                console.error("Failed to load events", err)
+            }
+        }
+
         // Get available events — if all booked, recommend from all events anyway
         const bookedTitles = userTickets.map(t => t.events?.title).filter(Boolean)
-        const availableEvents = events.length > 0 ? events : []
+        const availableEvents = currentEvents.length > 0 ? currentEvents : []
 
         if (availableEvents.length === 0) {
             setRecommendation('No events found on the site yet. Check back soon!')
+            setLoading(false)
             return
         }
 
         const unbooked = availableEvents.filter(e => !bookedTitles.includes(e.title))
         const poolToRecommendFrom = unbooked.length > 0 ? unbooked : availableEvents
 
-        setLoading(true)
         setRecommendation('')
         setEventName('')
 
