@@ -15,8 +15,8 @@ export default function AIRecommend() {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY
 
     const generateRecommendation = async () => {
-        if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-            setRecommendation('Please add your VITE_GEMINI_API_KEY in the .env file to unlock AI recommendations!')
+        if (!apiKey || apiKey.length < 20) {
+            setRecommendation('Gemini API key not configured on Vercel yet. Add VITE_GEMINI_API_KEY in Vercel → Settings → Environment Variables and redeploy.')
             return
         }
 

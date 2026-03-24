@@ -33,12 +33,12 @@ export default function AIChatbot() {
         setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
         setIsLoading(true);
 
-        if (!apiKey || apiKey === 'your_gemini_api_key') {
+        if (!apiKey || apiKey.length < 20) {
             setTimeout(() => {
-                setMessages(prev => [...prev, { role: 'assistant', content: 'Oops! The Gemini API key is missing. Please add VITE_GEMINI_API_KEY to your .env file.' }]);
-                setIsLoading(false);
-            }, 1000);
-            return;
+                setMessages(prev => [...prev, { role: 'assistant', content: 'The Gemini API key is not configured on Vercel yet. Please add VITE_GEMINI_API_KEY in Vercel → Settings → Environment Variables, then redeploy.' }])
+                setIsLoading(false)
+            }, 500)
+            return
         }
 
         try {
