@@ -4,6 +4,7 @@ import { Sparkles, ArrowRight, Loader2, RefreshCw } from 'lucide-react'
 import { useEventsStore, useTicketStore } from '../store/store'
 import { Link } from 'react-router-dom'
 import { GoogleGenAI } from '@google/genai'
+import { supabase } from '../lib/supabase'
 
 export default function AIRecommend() {
     const { events, fetchEvents } = useEventsStore()
@@ -21,39 +22,33 @@ export default function AIRecommend() {
         }
 
         setLoading(true)
-        
-        // Ensure we definitely have the events
-        let currentEvents = events
-        if (!currentEvents || currentEvents.length === 0) {
-            try {
-                // Fetch directly from database to avoid any store/caching issues
-                const { supabase } = await import('../lib/supabase')
-                const { data } = await supabase.from('events').select('*')
-                if (data && data.length > 0) {
-                    currentEvents = data
-                }
-            } catch (err) {
-                console.error("Failed to load events from DB", err)
-            }
-        }
-
-        // Get available events — if all booked, recommend from all events anyway
-        const bookedTitles = userTickets.map(t => t.events?.title).filter(Boolean)
-        const availableEvents = currentEvents.length > 0 ? currentEvents : []
-
-        if (availableEvents.length === 0) {
-            setRecommendation('No events found on the site yet. Check back soon!')
-            setLoading(false)
-            return
-        }
-
-        const unbooked = availableEvents.filter(e => !bookedTitles.includes(e.title))
-        const poolToRecommendFrom = unbooked.length > 0 ? unbooked : availableEvents
-
         setRecommendation('')
         setEventName('')
 
         try {
+            // Ensure we definitely have the events
+            let currentEvents = events
+            if (!currentEvents || currentEvents.length === 0) {
+                // Fetch directly from database to avoid any store/caching issues
+                const { data, error } = await supabase.from('events').select('*')
+                if (!error && data && data.length > 0) {
+                    currentEvents = data
+                }
+            }
+
+            // Get available events — if all booked, recommend from all events anyway
+            const tickets = userTickets || []
+            const bookedTitles = tickets.map(t => t.events?.title).filter(Boolean)
+            const availableEvents = currentEvents && currentEvents.length > 0 ? currentEvents : []
+
+            if (availableEvents.length === 0) {
+                setRecommendation('No events found on the site yet. Check back soon!')
+                return
+            }
+
+            const unbooked = availableEvents.filter(e => !bookedTitles.includes(e.title))
+            const poolToRecommendFrom = unbooked.length > 0 ? unbooked : availableEvents
+
             const ai = new GoogleGenAI({ apiKey })
 
             // Build a numbered EXACT title list — AI must choose only from this
@@ -111,7 +106,7 @@ export default function AIRecommend() {
             }
         } catch (error) {
             console.error('AI Recommend error:', error)
-            setRecommendation('Having trouble connecting right now. Try again in a moment!')
+            setRecommendation('Having trouble connecting right now. Try again locally or slowly.')
         } finally {
             setLoading(false)
         }
