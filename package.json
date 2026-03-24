@@ -9,9 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/genai": "^1.46.0",
     "@react-three/drei": "^9.115.0",
     "@react-three/fiber": "^8.17.10",
     "@supabase/supabase-js": "^2.45.4",
+    "face-api.js": "^0.22.2",
     "framer-motion": "^11.11.17",
     "lucide-react": "^0.454.0",
     "qrcode.react": "^4.2.0",

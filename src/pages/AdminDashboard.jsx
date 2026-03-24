@@ -8,12 +8,14 @@ import {
 import { useEventsStore, useAuthStore } from '../store/store'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
+import AIFaceRecognition from '../components/AIFaceRecognition'
 
 const TABS = [
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={16} /> },
     { id: 'events', label: 'Events', icon: <Calendar size={16} /> },
     { id: 'users', label: 'User Bookings', icon: <Users size={16} /> },
     { id: 'notifs', label: 'Notifications', icon: <Bell size={16} /> },
+    { id: 'checkin', label: 'Face Check-In', icon: <span style={{ fontSize: 14 }}>🎭</span> },
 ]
 
 const DEFAULT_EVENT = {
@@ -539,6 +541,14 @@ export default function AdminDashboard() {
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </motion.div>
+                    )}
+                    {/* ─── FACE CHECK-IN TAB ─── */}
+                    {activeTab === 'checkin' && (
+                        <motion.div key="checkin" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                            <div className="glass-card">
+                                <AIFaceRecognition />
                             </div>
                         </motion.div>
                     )}

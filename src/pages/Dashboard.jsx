@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useAuthStore, useTicketStore, useNotifStore } from '../store/store'
 import { useNavigate, Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import AIRecommend from '../components/AIRecommend'
 
 // ─── QR Modal ────────────────────────────────────────────────────────────────
 function QRModal({ ticket, onClose }) {
@@ -393,6 +394,9 @@ export default function Dashboard() {
                             </motion.div>
                         ))}
                     </div>
+
+                    {/* AI Recommendations */}
+                    <AIRecommend />
 
                     {/* Tickets */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>

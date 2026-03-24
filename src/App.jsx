@@ -8,6 +8,7 @@ import { supabase, isSupabaseConfigured } from './lib/supabase'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import ParticleBackground from './components/ParticleBackground'
+import AIChatbot from './components/AIChatbot'
 
 // Pages
 import Home from './pages/Home'
@@ -127,6 +128,7 @@ export default function App() {
                         error: { iconTheme: { primary: '#ff5252', secondary: '#020b18' } },
                     }}
                 />
+                <AIChatbot />
             </div>
         </BrowserRouter>
     )
