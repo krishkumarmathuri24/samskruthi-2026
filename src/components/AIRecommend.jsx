@@ -20,35 +20,46 @@ export default function AIRecommend() {
             return
         }
 
+        // Get available events (not yet booked by user)
+        const bookedTitles = userTickets.map(t => t.events?.title).filter(Boolean)
+        const availableEvents = events.filter(e => !bookedTitles.includes(e.title))
+
+        if (availableEvents.length === 0) {
+            setRecommendation("You've booked every event! You're an absolute Samskruthi legend. 🎉")
+            return
+        }
+
         setLoading(true)
         setRecommendation('')
         setEventName('')
+
         try {
             const ai = new GoogleGenAI({ apiKey })
 
-            const bookedTitles = userTickets
-                .map(t => t.events?.title)
-                .filter(Boolean)
-
-            const bookedContext = bookedTitles.length > 0
-                ? 'User has already booked: ' + bookedTitles.join(', ') + '.'
-                : 'User has not booked any events yet.'
-
-            const available = events
-                .filter(e => !bookedTitles.includes(e.title))
-                .map(e => '- ' + e.title + ' (' + e.category + '): ' + (e.description || 'A great event'))
+            // Build a numbered EXACT title list — AI must choose only from this
+            const numberedList = availableEvents
+                .map((e, i) => (i + 1) + '. ' + e.title)
                 .join('\n')
 
+            const bookedContext = bookedTitles.length > 0
+                ? 'The user has already booked: ' + bookedTitles.join(', ') + '.'
+                : 'The user has not booked any events yet.'
+
             const prompt = [
-                'You are an AI event matchmaker for Samskruthi 2026.',
+                'You are an AI assistant for Samskruthi 2026 college fest.',
                 bookedContext,
-                'Available events the user has not booked yet:',
-                available,
                 '',
-                'Suggest exactly ONE event they should attend.',
-                'Respond in this format only:',
-                'EVENT: <event title>',
-                'REASON: <one exciting sentence why they should attend>',
+                'Here is the COMPLETE list of events available on the website:',
+                numberedList,
+                '',
+                'STRICT RULES:',
+                '- You MUST only choose from the events listed above.',
+                '- Do NOT invent, guess, or suggest any event not in the list above.',
+                '- Copy the event title EXACTLY as written — same spelling, same capitalization.',
+                '',
+                'Respond in EXACTLY this format and nothing else:',
+                'EVENT: <copy exact title from the list above>',
+                'REASON: <one exciting sentence about why this event is unmissable>',
             ].join('\n')
 
             const response = await ai.models.generateContent({
@@ -59,9 +70,26 @@ export default function AIRecommend() {
             const text = response.text || ''
             const eventMatch = text.match(/EVENT:\s*(.+)/i)
             const reasonMatch = text.match(/REASON:\s*(.+)/i)
+            const suggestedTitle = eventMatch ? eventMatch[1].trim() : ''
 
-            setEventName(eventMatch ? eventMatch[1].trim() : '')
-            setRecommendation(reasonMatch ? reasonMatch[1].trim() : text.trim())
+            // Validate: check if the AI's suggestion actually exists in our events list
+            const validEvent = availableEvents.find(
+                e => e.title.toLowerCase() === suggestedTitle.toLowerCase()
+            ) || availableEvents.find(
+                e => e.title.toLowerCase().includes(suggestedTitle.toLowerCase())
+                    || suggestedTitle.toLowerCase().includes(e.title.toLowerCase())
+            )
+
+            if (validEvent) {
+                // AI gave a real event — use it
+                setEventName(validEvent.title)
+                setRecommendation(reasonMatch ? reasonMatch[1].trim() : 'This is a must-attend event at Samskruthi 2026!')
+            } else {
+                // AI hallucinated — fall back to first available real event
+                const fallback = availableEvents[0]
+                setEventName(fallback.title)
+                setRecommendation('This event is a top pick at Samskruthi 2026 — grab your free ticket before it fills up!')
+            }
         } catch (error) {
             console.error('AI Recommend error:', error)
             setRecommendation('Having trouble connecting right now. Try again in a moment!')
