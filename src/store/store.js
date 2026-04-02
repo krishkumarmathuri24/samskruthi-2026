@@ -215,43 +215,33 @@ export const useTicketStore = create((set, get) => ({
             // 4. Build the ticket object with event data we already have
             const ticket = { ...newTicket, events: ev }
 
-            // 5. Immediately update the local events store so the % bar moves instantly
-            useEventsStore.setState(state => ({
-                events: state.events.map(e =>
-                    e.id === eventId
-                        ? { ...e, tickets_booked: (e.tickets_booked || 0) + 1 }
-                        : e
-                )
-            }))
-
-            // 6. Update database ticket count (try RPC first, fallback to direct update)
+            // 5. Fire-and-forget side effects (NEVER block the ticket)
             setTimeout(async () => {
+                // Instantly update the local store so the percent bar moves immediately
+                const currentEvents = useEventsStore.getState().events;
+                useEventsStore.setState({
+                    events: currentEvents.map(e => e.id === eventId ? { ...e, tickets_booked: e.tickets_booked + 1 } : e)
+                });
+
+                // Update database
                 try {
                     const { error: rpcErr } = await supabase.rpc('increment_tickets', { event_id: eventId })
-                    if (rpcErr) {
-                        // RPC doesn't exist or failed — do direct update
-                        const { data: current } = await supabase
-                            .from('events')
-                            .select('tickets_booked')
-                            .eq('id', eventId)
-                            .single()
-                        if (current) {
-                            await supabase
-                                .from('events')
-                                .update({ tickets_booked: (current.tickets_booked || 0) + 1 })
-                                .eq('id', eventId)
-                        }
+                    if (rpcErr) throw rpcErr;
+                } catch (_) {
+                    // Fallback to manual update if RPC doesn't exist
+                    const { data } = await supabase.from('events').select('tickets_booked').eq('id', eventId).single()
+                    if (data) {
+                        await supabase.from('events').update({ tickets_booked: data.tickets_booked + 1 }).eq('id', eventId)
                     }
-                } catch (_) { /* silently handle */ }
-
-                // Send notification
+                }
+                
                 supabase.from('notifications').insert({
                     user_id: userId,
                     title: `🎫 Ticket Confirmed — ${ev.title}`,
                     message: `Code: ${ticketCode}`,
                     read: false, created_at: new Date().toISOString(),
                 }).catch(() => { })
-            }, 100)
+            }, 50)
 
             set((state) => ({ userTickets: [ticket, ...state.userTickets] }))
             return ticket
@@ -277,15 +267,6 @@ export const useTicketStore = create((set, get) => ({
                 }
             } catch (_2) { /* ignore */ }
         }
-
-        // Immediately update the local events store so the % bar moves down instantly
-        useEventsStore.setState(state => ({
-            events: state.events.map(e =>
-                e.id === eventId
-                    ? { ...e, tickets_booked: Math.max(0, (e.tickets_booked || 1) - 1) }
-                    : e
-            )
-        }))
 
         set((state) => ({ userTickets: state.userTickets.filter(t => t.id !== ticketId) }))
     },

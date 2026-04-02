@@ -208,7 +208,10 @@ function SuccessModal({ ticket, event, onClose }) {
 
 // ─── Event Card ───────────────────────────────────────────────────────────────
 function EventCard({ event, onBook, onCancel, userTickets, bookingId }) {
-    const pct = Math.round((event.tickets_booked / event.capacity) * 100)
+    let pct = Math.round((event.tickets_booked / event.capacity) * 100)
+    // Guarantee 1% minimum if at least 1 ticket is booked so it visually moves
+    if (pct === 0 && event.tickets_booked > 0) pct = 1
+
     const myTicket = userTickets?.find(t => t.event_id === event.id)
     const isFull = event.tickets_booked >= event.capacity
     const isBooking = bookingId === event.id
