@@ -6,17 +6,15 @@ import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 
-const CATEGORIES = ['All', 'Music', 'Dance', 'Tech', 'Art', 'Comedy', 'Fashion', 'Sports', 'Literature', 'Food', 'Photography', 'Theater', 'Quiz', 'Debate']
+const CATEGORIES = ['All', 'Music', 'Dance', 'Art', 'Comedy', 'Fashion', 'Literature', 'Gaming', 'Arts']
 
 const MOCK_EVENTS = [
-    { id: '1', title: 'Battle of Bands', category: 'Music', description: 'Live band competition with top college bands from across the country.', event_date: '2026-08-15T18:00:00', venue: 'Main Stage', capacity: 2000, tickets_booked: 1230, duration: '3 hours', emoji: '🎸' },
-    { id: '2', title: 'Dance War', category: 'Dance', description: 'Solo, duo, and group dance competition across classical and contemporary styles.', event_date: '2026-08-15T14:00:00', venue: 'Dance Arena', capacity: 800, tickets_booked: 540, duration: '4 hours', emoji: '💃' },
-    { id: '3', title: 'Code Storm', category: 'Tech', description: '24-hour hackathon with exciting problem statements and industry mentors.', event_date: '2026-08-16T09:00:00', venue: 'Tech Hub', capacity: 400, tickets_booked: 320, duration: '24 hours', emoji: '💻' },
-    { id: '4', title: 'Rangoli Royale', category: 'Art', description: 'Traditional art competition showcasing intricate designs and creativity.', event_date: '2026-08-16T10:00:00', venue: 'Art Pavilion', capacity: 200, tickets_booked: 87, duration: '3 hours', emoji: '🎨' },
-    { id: '5', title: 'Stand-up Nite', category: 'Comedy', description: 'Comedy night featuring student comedians and special celebrity guest.', event_date: '2026-08-16T20:00:00', venue: 'Comedy Club', capacity: 600, tickets_booked: 590, duration: '2 hours', emoji: '🎤' },
-    { id: '6', title: 'Fashion Fiesta', category: 'Fashion', description: 'Runway fashion show celebrating cultural couture and modern design.', event_date: '2026-08-17T16:00:00', venue: 'Fashion Hall', capacity: 1000, tickets_booked: 720, duration: '2 hours', emoji: '👗' },
-    { id: '7', title: 'Slam Poetry', category: 'Literature', description: 'Express yourself through powerful spoken word performances.', event_date: '2026-08-15T16:00:00', venue: 'Literary Lounge', capacity: 300, tickets_booked: 120, duration: '2 hours', emoji: '📖' },
-    { id: '8', title: 'Cricket Clash', category: 'Sports', description: 'Inter-college T20 cricket tournament with massive prize money.', event_date: '2026-08-15T08:00:00', venue: 'Sports Ground', capacity: 5000, tickets_booked: 2300, duration: '8 hours', emoji: '🏑' },
+    { id: '1', title: 'Classical Dance', category: 'Dance', description: 'Showcase the grace and tradition of classical Indian dance forms like Bharatanatyam, Kuchipudi, and Odissi.', event_date: '2026-08-15T09:00:00', venue: 'On Stage', capacity: 500, tickets_booked: 0, duration: '2 hours', emoji: '💃' },
+    { id: '2', title: 'Battle of Bands', category: 'Music', description: 'Rock the campus! Bands compete head-to-head in an electrifying live music battle.', event_date: '2026-08-16T11:00:00', venue: 'On Stage', capacity: 800, tickets_booked: 0, duration: '3 hours', emoji: '🎵' },
+    { id: '3', title: 'Stand-Up Comedy', category: 'Comedy', description: 'Make the crowd roar with laughter! Aspiring comedians take the mic for a set of original stand-up material.', event_date: '2026-08-16T13:00:00', venue: 'On Stage', capacity: 500, tickets_booked: 0, duration: '2 hours', emoji: '😂' },
+    { id: '4', title: 'Painting', category: 'Art', description: 'Express yourself on canvas! Participants paint on a given theme using any medium.', event_date: '2026-08-15T10:00:00', venue: 'Off Stage', capacity: 200, tickets_booked: 0, duration: '3 hours', emoji: '🎨' },
+    { id: '5', title: 'Fashion Show', category: 'Fashion', description: 'Walk the ramp and turn heads! Participants showcase their style, theme-based outfits, and confidence.', event_date: '2026-08-15T15:00:00', venue: 'On Stage', capacity: 500, tickets_booked: 0, duration: '2 hours', emoji: '👗' },
+    { id: '6', title: 'Online Gaming [Free Fire]', category: 'Gaming', description: 'Gear up and survive! Teams of 4 battle it out in a thrilling Free Fire tournament.', event_date: '2026-08-16T10:00:00', venue: 'Off Stage', capacity: 200, tickets_booked: 0, duration: '4 hours', emoji: '🎮' },
 ]
 
 // ─── Booking Modal ────────────────────────────────────────────────────────────

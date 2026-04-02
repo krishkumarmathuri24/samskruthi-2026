@@ -111,7 +111,7 @@ export default function AIRecommend() {
             }
         } catch (error) {
             console.error('AI Recommend error:', error)
-            setRecommendation('Having trouble connecting right now. Try again locally or slowly.')
+            setRecommendation(`Error: ${error.message}. Please check your laptop's network or ad-blocker.`)
         } finally {
             setLoading(false)
         }
