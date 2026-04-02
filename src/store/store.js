@@ -266,11 +266,21 @@ export const useEventsStore = create((set) => ({
     fetchEvents: async () => {
         set({ loading: true })
         try {
-            const fetchPromise = supabase.from('events').select('*').order('event_date', { ascending: true })
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000))
+            const fetchPromise = supabase
+                .from('events')
+                .select('*')
+                .order('event_date', { ascending: true })
+                .limit(100)
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
             const { data, error } = await Promise.race([fetchPromise, timeoutPromise])
-            if (!error && data) set({ events: data })
-        } catch (_) {
+            if (error) {
+                console.error('fetchEvents error:', error.message)
+            } else if (data) {
+                console.log('fetchEvents loaded:', data.length, 'events')
+                set({ events: data })
+            }
+        } catch (err) {
+            console.error('fetchEvents failed:', err.message)
             // Network failed or timed out — UI will use mock events fallback
         } finally {
             set({ loading: false })

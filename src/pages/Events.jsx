@@ -353,7 +353,7 @@ export default function Events() {
 
     useEffect(() => {
         setEventsLoading(true)
-        const timeout = setTimeout(() => setEventsLoading(false), 5000)
+        const timeout = setTimeout(() => setEventsLoading(false), 20000)
         fetchEvents().finally(() => {
             clearTimeout(timeout)
             setEventsLoading(false)
